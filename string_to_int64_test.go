@@ -2,7 +2,7 @@
 // Use of ths2i source code s2i governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"bytes"
@@ -11,16 +11,16 @@ import (
 	"testing"
 )
 
-func setUpS2I64FlagSet(s2ip *map[string]int64) *FlagSet {
+func setUpS2I64FlagSet(s2ip *map[string]int64) (*FlagSet, *Flag[map[string]int64]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToInt64Var(s2ip, "s2i", map[string]int64{}, "Command separated ls2it!")
-	return f
+	flag := f.NewVar(s2ip, "s2i", map[string]int64{}, "Command separated ls2it!")
+	return f, flag
 }
 
-func setUpS2I64FlagSetWithDefault(s2ip *map[string]int64) *FlagSet {
+func setUpS2I64FlagSetWithDefault(s2ip *map[string]int64) (*FlagSet, *Flag[map[string]int64]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToInt64Var(s2ip, "s2i", map[string]int64{"a": 1, "b": 2}, "Command separated ls2it!")
-	return f
+	flag := f.NewVar(s2ip, "s2i", map[string]int64{"a": 1, "b": 2}, "Command separated ls2it!")
+	return f, flag
 }
 
 func createS2I64Flag(vals map[string]int64) string {
@@ -40,16 +40,17 @@ func createS2I64Flag(vals map[string]int64) string {
 
 func TestEmptyS2I64(t *testing.T) {
 	var s2i map[string]int64
-	f := setUpS2I64FlagSet(&s2i)
+	f, flag := setUpS2I64FlagSet(&s2i)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getS2I, err := f.GetStringToInt64("s2i")
+	flag, err = f.Lookup[map[string]int64]("s2i")
 	if err != nil {
-		t.Fatal("got an error from GetStringToInt64():", err)
+		t.Fatal("Lookup[map[string]int64]:", err)
 	}
+	getS2I := flag.Get()
 	if len(getS2I) != 0 {
 		t.Fatalf("got s2i %v with len=%d but expected length=0", getS2I, len(getS2I))
 	}
@@ -57,7 +58,7 @@ func TestEmptyS2I64(t *testing.T) {
 
 func TestS2I64(t *testing.T) {
 	var s2i map[string]int64
-	f := setUpS2I64FlagSet(&s2i)
+	f, flag := setUpS2I64FlagSet(&s2i)
 
 	vals := map[string]int64{"a": 1, "b": 2, "d": 4, "c": 3}
 	arg := fmt.Sprintf("--s2i=%s", createS2I64Flag(vals))
@@ -70,10 +71,11 @@ func TestS2I64(t *testing.T) {
 			t.Fatalf("expected s2i[%s] to be %d but got: %d", k, vals[k], v)
 		}
 	}
-	getS2I, err := f.GetStringToInt64("s2i")
+	flag, err = f.Lookup[map[string]int64]("s2i")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[map[string]int64]:", err)
 	}
+	getS2I := flag.Get()
 	for k, v := range getS2I {
 		if vals[k] != v {
 			t.Fatalf("expected s2i[%s] to be %d but got: %d from GetStringToInt64", k, vals[k], v)
@@ -83,7 +85,7 @@ func TestS2I64(t *testing.T) {
 
 func TestS2I64Default(t *testing.T) {
 	var s2i map[string]int64
-	f := setUpS2I64FlagSetWithDefault(&s2i)
+	f, flag := setUpS2I64FlagSetWithDefault(&s2i)
 
 	vals := map[string]int64{"a": 1, "b": 2}
 
@@ -97,10 +99,11 @@ func TestS2I64Default(t *testing.T) {
 		}
 	}
 
-	getS2I, err := f.GetStringToInt64("s2i")
+	flag, err = f.Lookup[map[string]int64]("s2i")
 	if err != nil {
-		t.Fatal("got an error from GetStringToInt64():", err)
+		t.Fatal("Lookup[map[string]int64]:", err)
 	}
+	getS2I := flag.Get()
 	for k, v := range getS2I {
 		if vals[k] != v {
 			t.Fatalf("expected s2i[%s] to be %d from GetStringToInt64 but got: %d", k, vals[k], v)
@@ -110,7 +113,7 @@ func TestS2I64Default(t *testing.T) {
 
 func TestS2I64WithDefault(t *testing.T) {
 	var s2i map[string]int64
-	f := setUpS2I64FlagSetWithDefault(&s2i)
+	f, flag := setUpS2I64FlagSetWithDefault(&s2i)
 
 	vals := map[string]int64{"a": 1, "b": 2}
 	arg := fmt.Sprintf("--s2i=%s", createS2I64Flag(vals))
@@ -124,10 +127,11 @@ func TestS2I64WithDefault(t *testing.T) {
 		}
 	}
 
-	getS2I, err := f.GetStringToInt64("s2i")
+	flag, err = f.Lookup[map[string]int64]("s2i")
 	if err != nil {
-		t.Fatal("got an error from GetStringToInt64():", err)
+		t.Fatal("Lookup[map[string]int64]:", err)
 	}
+	getS2I := flag.Get()
 	for k, v := range getS2I {
 		if vals[k] != v {
 			t.Fatalf("expected s2i[%s] to be %d from GetStringToInt64 but got: %d", k, vals[k], v)
@@ -137,7 +141,7 @@ func TestS2I64WithDefault(t *testing.T) {
 
 func TestS2I64CalledTwice(t *testing.T) {
 	var s2i map[string]int64
-	f := setUpS2I64FlagSet(&s2i)
+	f, _ := setUpS2I64FlagSet(&s2i)
 
 	in := []string{"a=1,b=2", "b=3"}
 	expected := map[string]int64{"a": 1, "b": 3}

@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -16,35 +16,34 @@ func equalCIDR(c1 net.IPNet, c2 net.IPNet) bool {
 	return c1.String() == c2.String()
 }
 
-func setUpIPNetFlagSet(ipsp *[]net.IPNet) *FlagSet {
+func setUpIPNetFlagSet(ipsp *[]net.IPNet) (*FlagSet, *Flag[[]net.IPNet]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPNetSliceVar(ipsp, "cidrs", []net.IPNet{}, "Command separated list!")
-	return f
+	flag := f.NewVar(ipsp, "cidrs", []net.IPNet{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpIPNetFlagSetWithDefault(ipsp *[]net.IPNet) *FlagSet {
+func setUpIPNetFlagSetWithDefault(ipsp *[]net.IPNet) (*FlagSet, *Flag[[]net.IPNet]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPNetSliceVar(ipsp, "cidrs",
-		[]net.IPNet{
-			getCIDR(net.ParseCIDR("192.168.1.1/16")),
-			getCIDR(net.ParseCIDR("fd00::/64")),
-		},
-		"Command separated list!")
-	return f
+	flag := f.NewVar(ipsp, "cidrs", []net.IPNet{
+		getCIDR(net.ParseCIDR("192.168.1.1/16")),
+		getCIDR(net.ParseCIDR("fd00::/64")),
+	}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptyIPNet(t *testing.T) {
 	var cidrs []net.IPNet
-	f := setUpIPNetFlagSet(&cidrs)
+	f, flag := setUpIPNetFlagSet(&cidrs)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	flag, err = f.Lookup[[]net.IPNet]("cidrs")
 	if err != nil {
-		t.Fatal("got an error from GetIPNetSlice():", err)
+		t.Fatal("Lookup[[]net.IPNet]:", err)
 	}
+	getIPNet := flag.Get()
 	if len(getIPNet) != 0 {
 		t.Fatalf("got ips %v with len=%d but expected length=0", getIPNet, len(getIPNet))
 	}
@@ -52,7 +51,7 @@ func TestEmptyIPNet(t *testing.T) {
 
 func TestIPNets(t *testing.T) {
 	var ips []net.IPNet
-	f := setUpIPNetFlagSet(&ips)
+	f, _ := setUpIPNetFlagSet(&ips)
 
 	vals := []string{"192.168.1.1/24", "10.0.0.1/16", "fd00:0:0:0:0:0:0:2/64"}
 	arg := fmt.Sprintf("--cidrs=%s", strings.Join(vals, ","))
@@ -71,7 +70,7 @@ func TestIPNets(t *testing.T) {
 
 func TestIPNetDefault(t *testing.T) {
 	var cidrs []net.IPNet
-	f := setUpIPNetFlagSetWithDefault(&cidrs)
+	f, flag := setUpIPNetFlagSetWithDefault(&cidrs)
 
 	vals := []string{"192.168.1.1/16", "fd00::/64"}
 	err := f.Parse([]string{})
@@ -86,10 +85,11 @@ func TestIPNetDefault(t *testing.T) {
 		}
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	flag, err = f.Lookup[[]net.IPNet]("cidrs")
 	if err != nil {
-		t.Fatal("got an error from GetIPNetSlice")
+		t.Fatal("Lookup[[]net.IPNet]:", err)
 	}
+	getIPNet := flag.Get()
 	for i, v := range getIPNet {
 		if _, cidr, _ := net.ParseCIDR(vals[i]); cidr == nil {
 			t.Fatalf("invalid string being converted to CIDR: %s", vals[i])
@@ -101,7 +101,7 @@ func TestIPNetDefault(t *testing.T) {
 
 func TestIPNetWithDefault(t *testing.T) {
 	var cidrs []net.IPNet
-	f := setUpIPNetFlagSetWithDefault(&cidrs)
+	f, flag := setUpIPNetFlagSetWithDefault(&cidrs)
 
 	vals := []string{"192.168.1.1/16", "fd00::/64"}
 	arg := fmt.Sprintf("--cidrs=%s", strings.Join(vals, ","))
@@ -117,10 +117,11 @@ func TestIPNetWithDefault(t *testing.T) {
 		}
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	flag, err = f.Lookup[[]net.IPNet]("cidrs")
 	if err != nil {
-		t.Fatal("got an error from GetIPNetSlice")
+		t.Fatal("Lookup[[]net.IPNet]:", err)
 	}
+	getIPNet := flag.Get()
 	for i, v := range getIPNet {
 		if _, cidr, _ := net.ParseCIDR(vals[i]); cidr == nil {
 			t.Fatalf("invalid string being converted to CIDR: %s", vals[i])
@@ -132,7 +133,7 @@ func TestIPNetWithDefault(t *testing.T) {
 
 func TestIPNetCalledTwice(t *testing.T) {
 	var cidrs []net.IPNet
-	f := setUpIPNetFlagSet(&cidrs)
+	f, _ := setUpIPNetFlagSet(&cidrs)
 
 	in := []string{"192.168.1.2/16,fd00::/64", "10.0.0.1/24"}
 
@@ -220,7 +221,7 @@ func TestIPNetBadQuoting(t *testing.T) {
 	for i, test := range tests {
 
 		var cidrs []net.IPNet
-		f := setUpIPNetFlagSet(&cidrs)
+		f, _ := setUpIPNetFlagSet(&cidrs)
 
 		if err := f.Parse([]string{fmt.Sprintf("--cidrs=%s", strings.Join(test.FlagArg, ","))}); err != nil {
 			t.Fatalf("flag parsing failed with error: %s\nparsing:\t%#v\nwant:\t\t%s",

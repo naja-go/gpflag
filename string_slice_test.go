@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -10,30 +10,31 @@ import (
 	"testing"
 )
 
-func setUpSSFlagSet(ssp *[]string) *FlagSet {
+func setUpSSFlagSet(ssp *[]string) (*FlagSet, *Flag[[]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringSliceVar(ssp, "ss", []string{}, "Command separated list!")
-	return f
+	flag := f.NewVar(ssp, "ss", []string{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpSSFlagSetWithDefault(ssp *[]string) *FlagSet {
+func setUpSSFlagSetWithDefault(ssp *[]string) (*FlagSet, *Flag[[]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringSliceVar(ssp, "ss", []string{"default", "values"}, "Command separated list!")
-	return f
+	flag := f.NewVar(ssp, "ss", []string{"default", "values"}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptySS(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("got an error from GetStringSlice():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSS := flag.Get()
 	if len(getSS) != 0 {
 		t.Fatalf("got ss %v with len=%d but expected length=0", getSS, len(getSS))
 	}
@@ -41,16 +42,17 @@ func TestEmptySS(t *testing.T) {
 
 func TestEmptySSValue(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 	err := f.Parse([]string{"--ss="})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("got an error from GetStringSlice():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSS := flag.Get()
 	if len(getSS) != 0 {
 		t.Fatalf("got ss %v with len=%d but expected length=0", getSS, len(getSS))
 	}
@@ -58,7 +60,7 @@ func TestEmptySSValue(t *testing.T) {
 
 func TestSS(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 
 	vals := []string{"one", "two", "4", "3"}
 	arg := fmt.Sprintf("--ss=%s", strings.Join(vals, ","))
@@ -72,10 +74,11 @@ func TestSS(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("got an error from GetStringSlice():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSS := flag.Get()
 	for i, v := range getSS {
 		if vals[i] != v {
 			t.Fatalf("expected ss[%d] to be %s from GetStringSlice but got: %s", i, vals[i], v)
@@ -85,7 +88,7 @@ func TestSS(t *testing.T) {
 
 func TestSSDefault(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSetWithDefault(&ss)
+	f, flag := setUpSSFlagSetWithDefault(&ss)
 
 	vals := []string{"default", "values"}
 
@@ -99,10 +102,11 @@ func TestSSDefault(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("got an error from GetStringSlice():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSS := flag.Get()
 	for i, v := range getSS {
 		if vals[i] != v {
 			t.Fatalf("expected ss[%d] to be %s from GetStringSlice but got: %s", i, vals[i], v)
@@ -112,7 +116,7 @@ func TestSSDefault(t *testing.T) {
 
 func TestSSWithDefault(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSetWithDefault(&ss)
+	f, flag := setUpSSFlagSetWithDefault(&ss)
 
 	vals := []string{"one", "two", "4", "3"}
 	arg := fmt.Sprintf("--ss=%s", strings.Join(vals, ","))
@@ -126,10 +130,11 @@ func TestSSWithDefault(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("got an error from GetStringSlice():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSS := flag.Get()
 	for i, v := range getSS {
 		if vals[i] != v {
 			t.Fatalf("expected ss[%d] to be %s from GetStringSlice but got: %s", i, vals[i], v)
@@ -139,7 +144,7 @@ func TestSSWithDefault(t *testing.T) {
 
 func TestSSCalledTwice(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 
 	in := []string{"one,two", "three"}
 	expected := []string{"one", "two", "three"}
@@ -160,10 +165,11 @@ func TestSSCalledTwice(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(ss))
@@ -177,7 +183,7 @@ func TestSSCalledTwice(t *testing.T) {
 
 func TestSSWithComma(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 
 	in := []string{`"one,two"`, `"three"`, `"four,five",six`}
 	expected := []string{"one,two", "three", "four,five", "six"}
@@ -199,10 +205,11 @@ func TestSSWithComma(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(values))
@@ -216,7 +223,7 @@ func TestSSWithComma(t *testing.T) {
 
 func TestSSWithSquareBrackets(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, flag := setUpSSFlagSet(&ss)
 
 	in := []string{`"[a-z]"`, `"[a-z]+"`}
 	expected := []string{"[a-z]", "[a-z]+"}
@@ -237,10 +244,11 @@ func TestSSWithSquareBrackets(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	flag, err = f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(values))
@@ -252,9 +260,9 @@ func TestSSWithSquareBrackets(t *testing.T) {
 	}
 }
 
-func TestSSAsSliceValue(t *testing.T) {
+func TestSSTypedReplacement(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, _ := setUpSSFlagSet(&ss)
 
 	in := []string{"one", "two"}
 	argfmt := "--ss=%s"
@@ -265,31 +273,28 @@ func TestSSAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"three"})
-		}
-	})
+	flag, err := f.Lookup[[]string]("ss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]string{"three"})
 	if len(ss) != 1 || ss[0] != "three" {
 		t.Fatalf("Expected ss to be overwritten with 'three', but got: %s", ss)
 	}
 }
 
-func TestSSAsSliceValueAppend(t *testing.T) {
+func TestSSTypedReplacementAppend(t *testing.T) {
 	var ss []string
-	f := setUpSSFlagSet(&ss)
+	f, _ := setUpSSFlagSet(&ss)
 	err := f.Parse([]string{"--ss=one,two"})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
-	val, ok := f.Lookup("ss").Value.(SliceValue)
-	if !ok {
-		t.Fatal("expected SliceValue")
-	}
-	err = val.Append("three")
+	flag, err := f.Lookup[[]string]("ss")
 	if err != nil {
-		t.Fatal("unexpected error:", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	flag.Set(append(flag.Get(), "three"))
 	expected := []string{"one", "two", "three"}
 	if len(ss) != len(expected) {
 		t.Fatalf(

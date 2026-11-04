@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import "fmt"
 
@@ -59,7 +59,7 @@ func (e *NotExistError) GetSpecifiedShortnames() string {
 // ValueRequiredError is the error returned when a flag needs an argument but
 // no argument was provided.
 type ValueRequiredError struct {
-	flag                *Flag
+	flag                *Flag[any]
 	specifiedName       string
 	specifiedShorthands string
 }
@@ -75,8 +75,8 @@ func (e *ValueRequiredError) Error() string {
 }
 
 // GetFlag returns the flag for which the error occurred.
-func (e *ValueRequiredError) GetFlag() *Flag {
-	return e.flag
+func (e *ValueRequiredError) GetFlag() FlagMeta {
+	return copyFlagMeta(e.flag)
 }
 
 // GetSpecifiedName returns the name of the flag (without dashes) as it
@@ -95,7 +95,7 @@ func (e *ValueRequiredError) GetSpecifiedShortnames() string {
 // InvalidValueError is the error returned when an invalid value is used
 // for a flag.
 type InvalidValueError struct {
-	flag  *Flag
+	flag  FlagMeta
 	value string
 	cause error
 }
@@ -118,8 +118,8 @@ func (e *InvalidValueError) Unwrap() error {
 }
 
 // GetFlag returns the flag for which the error occurred.
-func (e *InvalidValueError) GetFlag() *Flag {
-	return e.flag
+func (e *InvalidValueError) GetFlag() FlagMeta {
+	return copyFlagMeta(e.flag)
 }
 
 // GetValue returns the invalid value that was provided.

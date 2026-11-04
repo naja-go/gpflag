@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"errors"
@@ -21,12 +21,12 @@ func TestNotExistError(t *testing.T) {
 
 func TestValueRequiredError(t *testing.T) {
 	err := &ValueRequiredError{
-		flag:                &Flag{},
+		flag:                FlagMeta{Name: "test"},
 		specifiedName:       "foo",
 		specifiedShorthands: "bar",
 	}
 
-	if err.GetFlag() == nil {
+	if err.GetFlag().Name != "test" {
 		t.Error("Expected GetSpecifiedName to return its flag field, but got nil")
 	}
 	if err.GetSpecifiedName() != "foo" {
@@ -40,12 +40,12 @@ func TestValueRequiredError(t *testing.T) {
 func TestInvalidValueError(t *testing.T) {
 	expectedCause := errors.New("error")
 	err := &InvalidValueError{
-		flag:  &Flag{},
+		flag:  FlagMeta{Name: "test"},
 		value: "foo",
 		cause: expectedCause,
 	}
 
-	if err.GetFlag() == nil {
+	if err.GetFlag().Name != "test" {
 		t.Error("Expected GetSpecifiedName to return its flag field, but got nil")
 	}
 	if err.GetValue() != "foo" {

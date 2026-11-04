@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -7,30 +7,31 @@ import (
 	"testing"
 )
 
-func setUpUISFlagSet(uisp *[]uint) *FlagSet {
+func setUpUISFlagSet(uisp *[]uint) (*FlagSet, *Flag[[]uint]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.UintSliceVar(uisp, "uis", []uint{}, "Command separated list!")
-	return f
+	flag := f.NewVar(uisp, "uis", []uint{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpUISFlagSetWithDefault(uisp *[]uint) *FlagSet {
+func setUpUISFlagSetWithDefault(uisp *[]uint) (*FlagSet, *Flag[[]uint]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.UintSliceVar(uisp, "uis", []uint{0, 1}, "Command separated list!")
-	return f
+	flag := f.NewVar(uisp, "uis", []uint{0, 1}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptyUIS(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSet(&uis)
+	f, flag := setUpUISFlagSet(&uis)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	flag, err = f.Lookup[[]uint]("uis")
 	if err != nil {
-		t.Fatal("got an error from GetUintSlice():", err)
+		t.Fatal("Lookup[[]uint]:", err)
 	}
+	getUIS := flag.Get()
 	if len(getUIS) != 0 {
 		t.Fatalf("got is %v with len=%d but expected length=0", getUIS, len(getUIS))
 	}
@@ -38,7 +39,7 @@ func TestEmptyUIS(t *testing.T) {
 
 func TestUIS(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSet(&uis)
+	f, flag := setUpUISFlagSet(&uis)
 
 	vals := []string{"1", "2", "4", "3"}
 	arg := fmt.Sprintf("--uis=%s", strings.Join(vals, ","))
@@ -55,10 +56,11 @@ func TestUIS(t *testing.T) {
 			t.Fatalf("expected uis[%d] to be %s but got %d", i, vals[i], v)
 		}
 	}
-	getUIS, err := f.GetUintSlice("uis")
+	flag, err = f.Lookup[[]uint]("uis")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[[]uint]:", err)
 	}
+	getUIS := flag.Get()
 	for i, v := range getUIS {
 		u, err := strconv.ParseUint(vals[i], 10, 0)
 		if err != nil {
@@ -72,7 +74,7 @@ func TestUIS(t *testing.T) {
 
 func TestUISHex(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSet(&uis)
+	f, flag := setUpUISFlagSet(&uis)
 
 	vals := []string{"0x1", "0x2", "0x10"}
 	arg := fmt.Sprintf("--uis=%s", strings.Join(vals, ","))
@@ -89,10 +91,11 @@ func TestUISHex(t *testing.T) {
 			t.Fatalf("expected uis[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getUIS, err := f.GetUintSlice("uis")
+	flag, err = f.Lookup[[]uint]("uis")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[[]uint]:", err)
 	}
+	getUIS := flag.Get()
 	for i, v := range getUIS {
 		u, err := strconv.ParseUint(vals[i], 0, 0)
 		if err != nil {
@@ -106,7 +109,7 @@ func TestUISHex(t *testing.T) {
 
 func TestUISDefault(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSetWithDefault(&uis)
+	f, flag := setUpUISFlagSetWithDefault(&uis)
 
 	vals := []string{"0", "1"}
 
@@ -124,10 +127,11 @@ func TestUISDefault(t *testing.T) {
 		}
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	flag, err = f.Lookup[[]uint]("uis")
 	if err != nil {
-		t.Fatal("got an error from GetUintSlice():", err)
+		t.Fatal("Lookup[[]uint]:", err)
 	}
+	getUIS := flag.Get()
 	for i, v := range getUIS {
 		u, err := strconv.ParseUint(vals[i], 10, 0)
 		if err != nil {
@@ -141,7 +145,7 @@ func TestUISDefault(t *testing.T) {
 
 func TestUISWithDefault(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSetWithDefault(&uis)
+	f, flag := setUpUISFlagSetWithDefault(&uis)
 
 	vals := []string{"1", "2"}
 	arg := fmt.Sprintf("--uis=%s", strings.Join(vals, ","))
@@ -159,10 +163,11 @@ func TestUISWithDefault(t *testing.T) {
 		}
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	flag, err = f.Lookup[[]uint]("uis")
 	if err != nil {
-		t.Fatal("got an error from GetUintSlice():", err)
+		t.Fatal("Lookup[[]uint]:", err)
 	}
+	getUIS := flag.Get()
 	for i, v := range getUIS {
 		u, err := strconv.ParseUint(vals[i], 10, 0)
 		if err != nil {
@@ -174,9 +179,9 @@ func TestUISWithDefault(t *testing.T) {
 	}
 }
 
-func TestUISAsSliceValue(t *testing.T) {
+func TestUISTypedReplacement(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSet(&uis)
+	f, _ := setUpUISFlagSet(&uis)
 
 	in := []string{"1", "2"}
 	argfmt := "--uis=%s"
@@ -187,11 +192,11 @@ func TestUISAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"3"})
-		}
-	})
+	flag, err := f.Lookup[[]uint]("uis")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]uint{3})
 	if len(uis) != 1 || uis[0] != 3 {
 		t.Fatalf("Expected ss to be overwritten with '3.1', but got: %v", uis)
 	}
@@ -199,7 +204,7 @@ func TestUISAsSliceValue(t *testing.T) {
 
 func TestUISCalledTwice(t *testing.T) {
 	var uis []uint
-	f := setUpUISFlagSet(&uis)
+	f, _ := setUpUISFlagSet(&uis)
 
 	in := []string{"1,2", "3"}
 	expected := []int{1, 2, 3}

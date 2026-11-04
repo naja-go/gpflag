@@ -2,37 +2,38 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"fmt"
 	"testing"
 )
 
-func setUpSAFlagSet(sap *[]string) *FlagSet {
+func setUpSAFlagSet(sap *[]string) (*FlagSet, *Flag[[]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringArrayVar(sap, "sa", []string{}, "Command separated list!")
-	return f
+	flag := f.NewVar((*[]string)(sap), "sa", []string{}, "Command separated list!", StringArray())
+	return f, flag
 }
 
-func setUpSAFlagSetWithDefault(sap *[]string) *FlagSet {
+func setUpSAFlagSetWithDefault(sap *[]string) (*FlagSet, *Flag[[]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringArrayVar(sap, "sa", []string{"default", "values"}, "Command separated list!")
-	return f
+	flag := f.NewVar((*[]string)(sap), "sa", []string{"default", "values"}, "Command separated list!", StringArray())
+	return f, flag
 }
 
 func TestEmptySA(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, flag := setUpSAFlagSet(&sa)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("got an error from GetStringArray():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSA := flag.Get()
 	if len(getSA) != 0 {
 		t.Fatalf("got sa %v with len=%d but expected length=0", getSA, len(getSA))
 	}
@@ -40,24 +41,25 @@ func TestEmptySA(t *testing.T) {
 
 func TestEmptySAValue(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, flag := setUpSAFlagSet(&sa)
 	err := f.Parse([]string{"--sa="})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("got an error from GetStringArray():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
-	if len(getSA) != 0 {
-		t.Fatalf("got sa %v with len=%d but expected length=0", getSA, len(getSA))
+	getSA := flag.Get()
+	if len(getSA) != 1 || getSA[0] != "" {
+		t.Fatalf("got sa %q with len=%d but expected one empty string", getSA, len(getSA))
 	}
 }
 
 func TestSADefault(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSetWithDefault(&sa)
+	f, flag := setUpSAFlagSetWithDefault(&sa)
 
 	vals := []string{"default", "values"}
 
@@ -71,10 +73,11 @@ func TestSADefault(t *testing.T) {
 		}
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("got an error from GetStringArray():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSA := flag.Get()
 	for i, v := range getSA {
 		if vals[i] != v {
 			t.Fatalf("expected sa[%d] to be %s from GetStringArray but got: %s", i, vals[i], v)
@@ -84,7 +87,7 @@ func TestSADefault(t *testing.T) {
 
 func TestSAWithDefault(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSetWithDefault(&sa)
+	f, flag := setUpSAFlagSetWithDefault(&sa)
 
 	val := "one"
 	arg := fmt.Sprintf("--sa=%s", val)
@@ -101,10 +104,11 @@ func TestSAWithDefault(t *testing.T) {
 		t.Fatalf("expected value to be %s but got: %s", sa[0], val)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("got an error from GetStringArray():", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	getSA := flag.Get()
 
 	if len(getSA) != 1 {
 		t.Fatalf("expected number of values to be %d but %d", 1, len(getSA))
@@ -117,7 +121,7 @@ func TestSAWithDefault(t *testing.T) {
 
 func TestSACalledTwice(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, flag := setUpSAFlagSet(&sa)
 
 	in := []string{"one", "two"}
 	expected := []string{"one", "two"}
@@ -138,10 +142,11 @@ func TestSACalledTwice(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(sa))
@@ -155,7 +160,7 @@ func TestSACalledTwice(t *testing.T) {
 
 func TestSAWithSpecialChar(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, flag := setUpSAFlagSet(&sa)
 
 	in := []string{"one,two", `"three"`, `"four,five",six`, "seven eight"}
 	expected := []string{"one,two", `"three"`, `"four,five",six`, "seven eight"}
@@ -178,10 +183,11 @@ func TestSAWithSpecialChar(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(values))
@@ -193,9 +199,9 @@ func TestSAWithSpecialChar(t *testing.T) {
 	}
 }
 
-func TestSAAsSliceValue(t *testing.T) {
+func TestSATypedReplacement(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, _ := setUpSAFlagSet(&sa)
 
 	in := []string{"1ns", "2ns"}
 	argfmt := "--sa=%s"
@@ -206,11 +212,11 @@ func TestSAAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"3ns"})
-		}
-	})
+	flag, err := f.Lookup[[]string]("sa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]string{"3ns"})
 	if len(sa) != 1 || sa[0] != "3ns" {
 		t.Fatalf("Expected ss to be overwritten with '3ns', but got: %v", sa)
 	}
@@ -218,7 +224,7 @@ func TestSAAsSliceValue(t *testing.T) {
 
 func TestSAWithSquareBrackets(t *testing.T) {
 	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f, flag := setUpSAFlagSet(&sa)
 
 	in := []string{"][]-[", "[a-z]", "[a-z]+"}
 	expected := []string{"][]-[", "[a-z]", "[a-z]+"}
@@ -240,10 +246,11 @@ func TestSAWithSquareBrackets(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	flag, err = f.Lookup[[]string]("sa")
 	if err != nil {
-		t.Fatal("expected no error; got", err)
+		t.Fatal("Lookup[[]string]:", err)
 	}
+	values := flag.Get()
 
 	if len(expected) != len(values) {
 		t.Fatalf("expected number of values to be %d but got: %d", len(expected), len(values))

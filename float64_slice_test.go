@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -11,30 +11,31 @@ import (
 	"testing"
 )
 
-func setUpF64SFlagSet(f64sp *[]float64) *FlagSet {
+func setUpF64SFlagSet(f64sp *[]float64) (*FlagSet, *Flag[[]float64]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float64SliceVar(f64sp, "f64s", []float64{}, "Command separated list!")
-	return f
+	flag := f.NewVar(f64sp, "f64s", []float64{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpF64SFlagSetWithDefault(f64sp *[]float64) *FlagSet {
+func setUpF64SFlagSetWithDefault(f64sp *[]float64) (*FlagSet, *Flag[[]float64]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float64SliceVar(f64sp, "f64s", []float64{0.0, 1.0}, "Command separated list!")
-	return f
+	flag := f.NewVar(f64sp, "f64s", []float64{0.0, 1.0}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptyF64S(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSet(&f64s)
+	f, flag := setUpF64SFlagSet(&f64s)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	flag, err = f.Lookup[[]float64]("f64s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat64Slice():", err)
+		t.Fatal("Lookup[[]float64]:", err)
 	}
+	getF64S := flag.Get()
 	if len(getF64S) != 0 {
 		t.Fatalf("got f64s %v with len=%d but expected length=0", getF64S, len(getF64S))
 	}
@@ -42,7 +43,7 @@ func TestEmptyF64S(t *testing.T) {
 
 func TestF64S(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSet(&f64s)
+	f, flag := setUpF64SFlagSet(&f64s)
 
 	vals := []string{"1.0", "2.0", "4.0", "3.0"}
 	arg := fmt.Sprintf("--f64s=%s", strings.Join(vals, ","))
@@ -59,10 +60,11 @@ func TestF64S(t *testing.T) {
 			t.Fatalf("expected f64s[%d] to be %s but got: %f", i, vals[i], v)
 		}
 	}
-	getF64S, err := f.GetFloat64Slice("f64s")
+	flag, err = f.Lookup[[]float64]("f64s")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[[]float64]:", err)
 	}
+	getF64S := flag.Get()
 	for i, v := range getF64S {
 		d, err := strconv.ParseFloat(vals[i], 64)
 		if err != nil {
@@ -76,7 +78,7 @@ func TestF64S(t *testing.T) {
 
 func TestF64SDefault(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSetWithDefault(&f64s)
+	f, flag := setUpF64SFlagSetWithDefault(&f64s)
 
 	vals := []string{"0.0", "1.0"}
 
@@ -94,10 +96,11 @@ func TestF64SDefault(t *testing.T) {
 		}
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	flag, err = f.Lookup[[]float64]("f64s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat64Slice():", err)
+		t.Fatal("Lookup[[]float64]:", err)
 	}
+	getF64S := flag.Get()
 	for i, v := range getF64S {
 		d, err := strconv.ParseFloat(vals[i], 64)
 		if err != nil {
@@ -111,7 +114,7 @@ func TestF64SDefault(t *testing.T) {
 
 func TestF64SWithDefault(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSetWithDefault(&f64s)
+	f, flag := setUpF64SFlagSetWithDefault(&f64s)
 
 	vals := []string{"1.0", "2.0"}
 	arg := fmt.Sprintf("--f64s=%s", strings.Join(vals, ","))
@@ -129,10 +132,11 @@ func TestF64SWithDefault(t *testing.T) {
 		}
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	flag, err = f.Lookup[[]float64]("f64s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat64Slice():", err)
+		t.Fatal("Lookup[[]float64]:", err)
 	}
+	getF64S := flag.Get()
 	for i, v := range getF64S {
 		d, err := strconv.ParseFloat(vals[i], 64)
 		if err != nil {
@@ -144,9 +148,9 @@ func TestF64SWithDefault(t *testing.T) {
 	}
 }
 
-func TestF64SAsSliceValue(t *testing.T) {
+func TestF64STypedReplacement(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSet(&f64s)
+	f, _ := setUpF64SFlagSet(&f64s)
 
 	in := []string{"1.0", "2.0"}
 	argfmt := "--f64s=%s"
@@ -157,11 +161,11 @@ func TestF64SAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"3.1"})
-		}
-	})
+	flag, err := f.Lookup[[]float64]("f64s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]float64{3.1})
 	if len(f64s) != 1 || f64s[0] != 3.1 {
 		t.Fatalf("Expected ss to be overwritten with '3.1', but got: %v", f64s)
 	}
@@ -169,7 +173,7 @@ func TestF64SAsSliceValue(t *testing.T) {
 
 func TestF64SCalledTwice(t *testing.T) {
 	var f64s []float64
-	f := setUpF64SFlagSet(&f64s)
+	f, _ := setUpF64SFlagSet(&f64s)
 
 	in := []string{"1.0,2.0", "3.0"}
 	expected := []float64{1.0, 2.0, 3.0}

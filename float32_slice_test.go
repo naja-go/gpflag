@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -11,30 +11,31 @@ import (
 	"testing"
 )
 
-func setUpF32SFlagSet(f32sp *[]float32) *FlagSet {
+func setUpF32SFlagSet(f32sp *[]float32) (*FlagSet, *Flag[[]float32]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float32SliceVar(f32sp, "f32s", []float32{}, "Command separated list!")
-	return f
+	flag := f.NewVar(f32sp, "f32s", []float32{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpF32SFlagSetWithDefault(f32sp *[]float32) *FlagSet {
+func setUpF32SFlagSetWithDefault(f32sp *[]float32) (*FlagSet, *Flag[[]float32]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float32SliceVar(f32sp, "f32s", []float32{0.0, 1.0}, "Command separated list!")
-	return f
+	flag := f.NewVar(f32sp, "f32s", []float32{0.0, 1.0}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptyF32S(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSet(&f32s)
+	f, flag := setUpF32SFlagSet(&f32s)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	flag, err = f.Lookup[[]float32]("f32s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat32Slice():", err)
+		t.Fatal("Lookup[[]float32]:", err)
 	}
+	getF32S := flag.Get()
 	if len(getF32S) != 0 {
 		t.Fatalf("got f32s %v with len=%d but expected length=0", getF32S, len(getF32S))
 	}
@@ -42,7 +43,7 @@ func TestEmptyF32S(t *testing.T) {
 
 func TestF32S(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSet(&f32s)
+	f, flag := setUpF32SFlagSet(&f32s)
 
 	vals := []string{"1.0", "2.0", "4.0", "3.0"}
 	arg := fmt.Sprintf("--f32s=%s", strings.Join(vals, ","))
@@ -61,10 +62,11 @@ func TestF32S(t *testing.T) {
 			t.Fatalf("expected f32s[%d] to be %s but got: %f", i, vals[i], v)
 		}
 	}
-	getF32S, err := f.GetFloat32Slice("f32s")
+	flag, err = f.Lookup[[]float32]("f32s")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[[]float32]:", err)
 	}
+	getF32S := flag.Get()
 	for i, v := range getF32S {
 		d64, err := strconv.ParseFloat(vals[i], 32)
 		if err != nil {
@@ -80,7 +82,7 @@ func TestF32S(t *testing.T) {
 
 func TestF32SDefault(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSetWithDefault(&f32s)
+	f, flag := setUpF32SFlagSetWithDefault(&f32s)
 
 	vals := []string{"0.0", "1.0"}
 
@@ -100,10 +102,11 @@ func TestF32SDefault(t *testing.T) {
 		}
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	flag, err = f.Lookup[[]float32]("f32s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat32Slice():", err)
+		t.Fatal("Lookup[[]float32]:", err)
 	}
+	getF32S := flag.Get()
 	for i, v := range getF32S {
 		d64, err := strconv.ParseFloat(vals[i], 32)
 		if err != nil {
@@ -119,7 +122,7 @@ func TestF32SDefault(t *testing.T) {
 
 func TestF32SWithDefault(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSetWithDefault(&f32s)
+	f, flag := setUpF32SFlagSetWithDefault(&f32s)
 
 	vals := []string{"1.0", "2.0"}
 	arg := fmt.Sprintf("--f32s=%s", strings.Join(vals, ","))
@@ -139,10 +142,11 @@ func TestF32SWithDefault(t *testing.T) {
 		}
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	flag, err = f.Lookup[[]float32]("f32s")
 	if err != nil {
-		t.Fatal("got an error from GetFloat32Slice():", err)
+		t.Fatal("Lookup[[]float32]:", err)
 	}
+	getF32S := flag.Get()
 	for i, v := range getF32S {
 		d64, err := strconv.ParseFloat(vals[i], 32)
 		if err != nil {
@@ -156,9 +160,9 @@ func TestF32SWithDefault(t *testing.T) {
 	}
 }
 
-func TestF32SAsSliceValue(t *testing.T) {
+func TestF32STypedReplacement(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSet(&f32s)
+	f, _ := setUpF32SFlagSet(&f32s)
 
 	in := []string{"1.0", "2.0"}
 	argfmt := "--f32s=%s"
@@ -169,11 +173,11 @@ func TestF32SAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"3.1"})
-		}
-	})
+	flag, err := f.Lookup[[]float32]("f32s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]float32{3.1})
 	if len(f32s) != 1 || f32s[0] != 3.1 {
 		t.Fatalf("Expected ss to be overwritten with '3.1', but got: %v", f32s)
 	}
@@ -181,7 +185,7 @@ func TestF32SAsSliceValue(t *testing.T) {
 
 func TestF32SCalledTwice(t *testing.T) {
 	var f32s []float32
-	f := setUpF32SFlagSet(&f32s)
+	f, _ := setUpF32SFlagSet(&f32s)
 
 	in := []string{"1.0,2.0", "3.0"}
 	expected := []float32{1.0, 2.0, 3.0}

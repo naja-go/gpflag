@@ -2,70 +2,77 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag_test
+package gpflag_test
 
 import (
 	"fmt"
 
-	"github.com/spf13/pflag"
+	"github.com/naja-go/gpflag"
 )
 
 func ExampleShorthandLookup() {
 	name := "verbose"
-	short := name[:1]
 
-	pflag.BoolP(name, short, false, "verbose output")
+	gpflag.New(name, false, "verbose output").Short('v')
 
 	// len(short) must be == 1
-	flag := pflag.ShorthandLookup(short)
+	flag := gpflag.ShorthandLookup("v")
 
 	fmt.Println(flag.Name)
 }
 
-func ExampleFlagSet_ShorthandLookup() {
+func ExampleFlagSet_NewP() {
 	name := "verbose"
-	short := name[:1]
 
-	fs := pflag.NewFlagSet("Example", pflag.ContinueOnError)
-	fs.BoolP(name, short, false, "verbose output")
+	fs := gpflag.NewFlagSet("Example", gpflag.ContinueOnError)
+	fs.NewP(name, "v", false, "verbose output")
 
 	// len(short) must be == 1
-	flag := fs.ShorthandLookup(short)
+	flag := fs.ShorthandLookup("v")
 
 	fmt.Println(flag.Name)
 }
 
-func ExampleFlagSet_StringToString() {
+func ExampleFlagSet_Lookup() {
+	fs := gpflag.NewFlagSet("Example", gpflag.ContinueOnError)
+	fs.New[[]bool]("bs", nil, "booleans")
+	if err := fs.Parse([]string{"--bs=true,false"}); err != nil {
+		panic(err)
+	}
+	bs, err := fs.Lookup[[]bool]("bs")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(bs.Get())
+	// Output: [true false]
+}
+
+func ExampleFlagSet_New_map() {
 	args := []string{
 		"--arg", "a=1,b=2",
 		"--arg", "a=2",
 		"--arg=d=4",
 	}
 
-	fs := pflag.NewFlagSet("Example", pflag.ContinueOnError)
-	fs.StringToString("arg", make(map[string]string), "string-to-string arg accepting key=value pairs")
+	fs := gpflag.NewFlagSet("Example", gpflag.ContinueOnError)
+	arg := fs.New("arg", map[string]string{}, "string-to-string arg accepting key=value pairs")
 
 	if err := fs.Parse(args); err != nil {
 		panic(err)
 	}
 
-	value, err := fs.GetStringToString("arg")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(value)
+	fmt.Println(arg.Get())
 	// Output: map[a:2 b:2 d:4]
 }
 
-func ExampleFlagSet_SetInterspersed() {
-	flags := pflag.NewFlagSet("wrapper", pflag.ContinueOnError)
-	verbose := flags.Bool("verbose", false, "verbose output")
+func ExampleFlagSet_New_bool() {
+	flags := gpflag.NewFlagSet("wrapper", gpflag.ContinueOnError)
+	verbose := flags.New("verbose", false, "verbose output")
 	flags.SetInterspersed(false)
 	if err := flags.Parse([]string{"--verbose", "echo", "--verbose", "hello"}); err != nil {
 		panic(err)
 	}
-	fmt.Println(*verbose)
+	fmt.Println(verbose.Get())
 	fmt.Println(flags.Args())
 	// Output:
 	// true

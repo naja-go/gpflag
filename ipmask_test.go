@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"net"
@@ -21,8 +21,8 @@ func TestParseIPv4Mask(t *testing.T) {
 
 func TestIPMaskRejectsIPv6(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
-	mask := f.IPMask("mask", net.IPv4Mask(255, 255, 255, 0), "IPv4 mask")
-	if err := f.Set("mask", "2001:db8::1"); err == nil {
+	mask := f.New[net.IPMask]("mask", net.IPv4Mask(255, 255, 255, 0), "IPv4 mask").Ptr()
+	if err := f.SetText("mask", "2001:db8::1"); err == nil {
 		t.Fatal("expected an error for an IPv6 mask")
 	}
 	if !reflect.DeepEqual(*mask, net.IPv4Mask(255, 255, 255, 0)) {

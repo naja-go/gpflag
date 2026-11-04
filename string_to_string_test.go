@@ -2,7 +2,7 @@
 // Use of ths2s source code s2s governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"bytes"
@@ -130,16 +130,17 @@ func TestStringToString(t *testing.T) {
 		t.Logf("    Expected:      %v", test.expected)
 
 		f := NewFlagSet("test", ContinueOnError)
-		f.StringToStringP("arg", "a", test.def, "test string-to-string arg")
+		flag := f.New[map[string]string]("arg", test.def, "test string-to-string arg").Short('a')
 
 		if err := f.Parse(test.args); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		result, err := f.GetStringToString("arg")
+		flag, err := f.Lookup[map[string]string]("arg")
 		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+			t.Fatal("Lookup[map[string]string]:", err)
 		}
+		result := flag.Get()
 
 		t.Logf("    Actual:        %v", result)
 
@@ -161,21 +162,21 @@ func TestStringToString(t *testing.T) {
 
 func TestStringToStringRejectsExtraCSVRecords(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
-	values := f.StringToString("arg", map[string]string{"default": "retained"}, "")
+	values := f.New[map[string]string]("arg", map[string]string{"default": "retained"}, "").Ptr()
 	if err := f.Parse([]string{"--arg", "a=first\nb=second"}); err == nil {
 		t.Fatal("expected an error instead of silently dropping the second record")
 	}
 	if !reflect.DeepEqual(*values, map[string]string{"default": "retained"}) {
 		t.Fatalf("failed parsing changed the default map: %v", *values)
 	}
-	if f.Lookup("arg").Changed {
+	if f.Changed("arg") {
 		t.Fatal("failed parsing marked the flag as changed")
 	}
 }
 
 func TestStringToStringQuotedNewline(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
-	values := f.StringToString("arg", nil, "")
+	values := f.New[map[string]string]("arg", nil, "").Ptr()
 	if err := f.Parse([]string{"--arg", "\"a=first\nsecond=value\""}); err != nil {
 		t.Fatalf("quoted newline should be preserved: %v", err)
 	}
@@ -184,8 +185,8 @@ func TestStringToStringQuotedNewline(t *testing.T) {
 	}
 }
 
-// This test ensures that [FlagSet.GetStringToString] always return the pointers which were given during flag
-// initialization.
+// This test ensures that Flag.Get preserves the map provided during
+// flag initialization.
 //
 // This behaviour is important as it ensures consumers of the library can access the underlying map in a stable,
 // consistent manner.
@@ -194,17 +195,19 @@ func TestS2SStablePointers(t *testing.T) {
 
 	defval := map[string]string{"a": "1", "b": "2"}
 
-	ptr := f.StringToString("map-flag", defval, "test for s2s arg")
+	flag := f.New[map[string]string]("map-flag", defval, "test for s2s arg")
+	ptr := flag.Ptr()
 
 	if reflect.ValueOf(*ptr).Pointer() != reflect.ValueOf(defval).Pointer() {
 		t.Fatal("pointer mismatch")
 	}
 
 	// initially, arg should have defaults
-	result0, err := f.GetStringToString("map-flag")
+	flag, err := f.Lookup[map[string]string]("map-flag")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	result0 := flag.Get()
 	if v, ok := result0["a"]; !ok || v != "1" {
 		t.Fatalf("value not present in map or unexpected value: %v", result0)
 	}
@@ -220,14 +223,15 @@ func TestS2SStablePointers(t *testing.T) {
 	}
 
 	// manipulate the map; the map should now have a single mapping and the pointers should be stable
-	if err := f.Set("map-flag", "c=3"); err != nil {
+	if err := f.SetText("map-flag", "c=3"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	result1, err := f.GetStringToString("map-flag")
+	flag, err = f.Lookup[map[string]string]("map-flag")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	result1 := flag.Get()
 
 	if reflect.ValueOf(*ptr).Pointer() != reflect.ValueOf(result1).Pointer() {
 		t.Fatal("pointer mismatch")
@@ -237,14 +241,15 @@ func TestS2SStablePointers(t *testing.T) {
 	}
 
 	// manipulate the map once more
-	if err := f.Set("map-flag", "d=4"); err != nil {
+	if err := f.SetText("map-flag", "d=4"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	result2, err := f.GetStringToString("map-flag")
+	flag, err = f.Lookup[map[string]string]("map-flag")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	result2 := flag.Get()
 
 	if reflect.ValueOf(*ptr).Pointer() != reflect.ValueOf(result2).Pointer() {
 		t.Fatal("pointer mismatch")
@@ -266,25 +271,26 @@ func TestS2SStablePointers(t *testing.T) {
 		delete(result1, k)
 	}
 
-	result3, err := f.GetStringToString("map-flag")
+	flag, err = f.Lookup[map[string]string]("map-flag")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	result3 := flag.Get()
 	if len(result3) != 0 {
 		t.Fatalf("unexpected map values: %v", result3)
 	}
 }
 
-func setUpS2SFlagSet(s2sp *map[string]string) *FlagSet {
+func setUpS2SFlagSet(s2sp *map[string]string) (*FlagSet, *Flag[map[string]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(s2sp, "s2s", map[string]string{}, "Command separated ls2st!")
-	return f
+	flag := f.NewVar(s2sp, "s2s", map[string]string{}, "Command separated ls2st!")
+	return f, flag
 }
 
-func setUpS2SFlagSetWithDefault(s2sp *map[string]string) *FlagSet {
+func setUpS2SFlagSetWithDefault(s2sp *map[string]string) (*FlagSet, *Flag[map[string]string]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(s2sp, "s2s", map[string]string{"da": "1", "db": "2", "de": "5,6"}, "Command separated ls2st!")
-	return f
+	flag := f.NewVar(s2sp, "s2s", map[string]string{"da": "1", "db": "2", "de": "5,6"}, "Command separated ls2st!")
+	return f, flag
 }
 
 func createS2SFlag(vals map[string]string) string {
@@ -304,16 +310,17 @@ func createS2SFlag(vals map[string]string) string {
 
 func TestEmptyS2S(t *testing.T) {
 	var s2s map[string]string
-	f := setUpS2SFlagSet(&s2s)
+	f, flag := setUpS2SFlagSet(&s2s)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	flag, err = f.Lookup[map[string]string]("s2s")
 	if err != nil {
-		t.Fatal("got an error from GetStringToString():", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	getS2S := flag.Get()
 	if len(getS2S) != 0 {
 		t.Fatalf("got s2s %v with len=%d but expected length=0", getS2S, len(getS2S))
 	}
@@ -321,7 +328,7 @@ func TestEmptyS2S(t *testing.T) {
 
 func TestS2S(t *testing.T) {
 	var s2s map[string]string
-	f := setUpS2SFlagSet(&s2s)
+	f, flag := setUpS2SFlagSet(&s2s)
 
 	vals := map[string]string{"a": "1", "b": "2", "d": "4", "c": "3", "e": "5,6"}
 	arg := fmt.Sprintf("--s2s=%s", createS2SFlag(vals))
@@ -334,10 +341,11 @@ func TestS2S(t *testing.T) {
 			t.Fatalf("expected s2s[%s] to be %s but got: %s", k, vals[k], v)
 		}
 	}
-	getS2S, err := f.GetStringToString("s2s")
+	flag, err = f.Lookup[map[string]string]("s2s")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	getS2S := flag.Get()
 	for k, v := range getS2S {
 		if vals[k] != v {
 			t.Fatalf("expected s2s[%s] to be %s but got: %s from GetStringToString", k, vals[k], v)
@@ -347,7 +355,7 @@ func TestS2S(t *testing.T) {
 
 func TestS2SDefault(t *testing.T) {
 	var s2s map[string]string
-	f := setUpS2SFlagSetWithDefault(&s2s)
+	f, flag := setUpS2SFlagSetWithDefault(&s2s)
 
 	vals := map[string]string{"da": "1", "db": "2", "de": "5,6"}
 
@@ -361,10 +369,11 @@ func TestS2SDefault(t *testing.T) {
 		}
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	flag, err = f.Lookup[map[string]string]("s2s")
 	if err != nil {
-		t.Fatal("got an error from GetStringToString():", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	getS2S := flag.Get()
 	for k, v := range getS2S {
 		if vals[k] != v {
 			t.Fatalf("expected s2s[%s] to be %s from GetStringToString but got: %s", k, vals[k], v)
@@ -374,7 +383,7 @@ func TestS2SDefault(t *testing.T) {
 
 func TestS2SWithDefault(t *testing.T) {
 	var s2s map[string]string
-	f := setUpS2SFlagSetWithDefault(&s2s)
+	f, flag := setUpS2SFlagSetWithDefault(&s2s)
 
 	vals := map[string]string{"a": "1", "b": "2", "e": "5,6"}
 	arg := fmt.Sprintf("--s2s=%s", createS2SFlag(vals))
@@ -388,10 +397,11 @@ func TestS2SWithDefault(t *testing.T) {
 		}
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	flag, err = f.Lookup[map[string]string]("s2s")
 	if err != nil {
-		t.Fatal("got an error from GetStringToString():", err)
+		t.Fatal("Lookup[map[string]string]:", err)
 	}
+	getS2S := flag.Get()
 	for k, v := range getS2S {
 		if vals[k] != v {
 			t.Fatalf("expected s2s[%s] to be %s from GetStringToString but got: %s", k, vals[k], v)
@@ -402,7 +412,7 @@ func TestS2SWithDefault(t *testing.T) {
 func TestS2SNilDefault(t *testing.T) {
 	var s2s map[string]string
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(&s2s, "s2s", nil, "Command separated ls!")
+	f.NewVar(&s2s, "s2s", nil, "Command separated ls!")
 
 	arg := fmt.Sprintf("--s2s=%s", createS2SFlag(map[string]string{"a": "1", "b": "2"}))
 	if err := f.Parse([]string{arg}); err != nil {
@@ -433,13 +443,17 @@ func TestS2SStringPreservesTrailingWhitespace(t *testing.T) {
 				if useDefault {
 					defaults["key"] = tc.value
 				}
-				f.StringToString("map", defaults, "")
+				f.New[map[string]string]("map", defaults, "").Ptr()
 				if !useDefault {
-					if err := f.Set("map", "key="+tc.value); err != nil {
+					if err := f.SetText("map", "key="+tc.value); err != nil {
 						t.Fatal(err)
 					}
 				}
-				if got := f.Lookup("map").Value.String(); got != tc.expected {
+				flag, err := f.Lookup[map[string]string]("map")
+				if err != nil {
+					t.Fatal("Lookup[map[string]string]:", err)
+				}
+				if got := flag.String(); got != tc.expected {
 					t.Errorf("default=%t: expected %q, got %q", useDefault, tc.expected, got)
 				}
 			}
@@ -449,7 +463,7 @@ func TestS2SStringPreservesTrailingWhitespace(t *testing.T) {
 
 func TestS2SCalledTwice(t *testing.T) {
 	var s2s map[string]string
-	f := setUpS2SFlagSet(&s2s)
+	f, _ := setUpS2SFlagSet(&s2s)
 
 	in := []string{"a=1,b=2", "b=3", `"e=5,6"`, `f=7,8`}
 	expected := map[string]string{"a": "1", "b": "3", "e": "5,6", "f": "7,8"}

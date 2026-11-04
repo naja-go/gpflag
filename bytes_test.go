@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"encoding/base64"
@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-func setUpBytesHex(bytesHex *[]byte) *FlagSet {
+func setUpBytesHex(bytesHex *[]byte) (*FlagSet, *Flag[[]byte]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BytesHexVar(bytesHex, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
-	f.BytesHexVarP(bytesHex, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
-	return f
+	flag := f.NewVar(bytesHex, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
+	f.NewVar(bytesHex, "bytes2", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX").Short('B')
+	return f, flag
 }
 
 func TestBytesHex(t *testing.T) {
@@ -38,7 +38,7 @@ func TestBytesHex(t *testing.T) {
 
 	for i := range testCases {
 		var bytesHex []byte
-		f := setUpBytesHex(&bytesHex)
+		f, flag := setUpBytesHex(&bytesHex)
 
 		tc := &testCases[i]
 
@@ -60,10 +60,11 @@ func TestBytesHex(t *testing.T) {
 				t.Errorf("expected failure while processing %q", tc.input)
 				continue
 			} else if tc.success {
-				bytesHex, err := f.GetBytesHex("bytes")
+				flag, err = f.Lookup[[]byte]("bytes")
 				if err != nil {
-					t.Errorf("Got error trying to fetch the 'bytes' flag: %v", err)
+					t.Fatal("Lookup[[]byte]:", err)
 				}
+				bytesHex := flag.Get()
 				if fmt.Sprintf("%X", bytesHex) != tc.expected {
 					t.Errorf("expected %q, got '%X'", tc.expected, bytesHex)
 				}
@@ -72,11 +73,11 @@ func TestBytesHex(t *testing.T) {
 	}
 }
 
-func setUpBytesBase64(bytesBase64 *[]byte) *FlagSet {
+func setUpBytesBase64(bytesBase64 *[]byte) (*FlagSet, *Flag[[]byte]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BytesBase64Var(bytesBase64, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
-	f.BytesBase64VarP(bytesBase64, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
-	return f
+	flag := f.NewVar((*[]byte)(bytesBase64), "bytes", []byte([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}), "Some bytes in Base64", Base64())
+	f.NewVar((*[]byte)(bytesBase64), "bytes2", []byte([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}), "Some bytes in Base64", Base64()).Short('B')
+	return f, flag
 }
 
 func TestBytesBase64(t *testing.T) {
@@ -99,7 +100,7 @@ func TestBytesBase64(t *testing.T) {
 
 	for i := range testCases {
 		var bytesBase64 []byte
-		f := setUpBytesBase64(&bytesBase64)
+		f, flag := setUpBytesBase64(&bytesBase64)
 
 		tc := &testCases[i]
 
@@ -121,10 +122,11 @@ func TestBytesBase64(t *testing.T) {
 				t.Errorf("expected failure while processing %q", tc.input)
 				continue
 			} else if tc.success {
-				bytesBase64, err := f.GetBytesBase64("bytes")
+				flag, err = f.Lookup[[]byte]("bytes")
 				if err != nil {
-					t.Errorf("Got error trying to fetch the 'bytes' flag: %v", err)
+					t.Fatal("Lookup[[]byte]:", err)
 				}
+				bytesBase64 := flag.Get()
 				if base64.StdEncoding.EncodeToString(bytesBase64) != tc.expected {
 					t.Errorf("expected %q, got '%X'", tc.expected, bytesBase64)
 				}

@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"strconv"
@@ -10,9 +10,9 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 	minInt := -maxInt - 1
 	t.Run("int", func(t *testing.T) {
 		f := NewFlagSet("int-range", ContinueOnError)
-		value := f.Int("value", 7, "")
+		value := f.New[int]("value", 7, "").Ptr()
 		for _, valid := range []int{minInt, maxInt} {
-			if err := f.Set("value", strconv.FormatInt(int64(valid), 10)); err != nil {
+			if err := f.SetText("value", strconv.FormatInt(int64(valid), 10)); err != nil {
 				t.Fatalf("valid native int rejected: %v", err)
 			}
 			if *value != valid {
@@ -23,7 +23,7 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 			strconv.FormatUint(uint64(maxInt)+1, 10),
 			"-" + strconv.FormatUint(uint64(maxInt)+2, 10),
 		} {
-			if err := f.Set("value", invalid); err == nil {
+			if err := f.SetText("value", invalid); err == nil {
 				t.Errorf("accepted out-of-range int %q as %d", invalid, *value)
 			}
 			if *value != maxInt {
@@ -34,8 +34,8 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 	t.Run("uint", func(t *testing.T) {
 		f := NewFlagSet("uint-range", ContinueOnError)
 		maxUint := ^uint(0)
-		value := f.Uint("value", 7, "")
-		if err := f.Set("value", strconv.FormatUint(uint64(maxUint), 10)); err != nil {
+		value := f.New[uint]("value", 7, "").Ptr()
+		if err := f.SetText("value", strconv.FormatUint(uint64(maxUint), 10)); err != nil {
 			t.Fatalf("valid native uint rejected: %v", err)
 		}
 		if *value != maxUint {
@@ -45,7 +45,7 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 		if strconv.IntSize == 32 {
 			invalid = "4294967296"
 		}
-		if err := f.Set("value", invalid); err == nil {
+		if err := f.SetText("value", invalid); err == nil {
 			t.Errorf("accepted out-of-range uint %q as %d", invalid, *value)
 		}
 		if *value != maxUint {

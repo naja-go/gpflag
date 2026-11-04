@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func setUpIP(ip *net.IP) *FlagSet {
+func setUpIP(ip *net.IP) (*FlagSet, *Flag[net.IP]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPVar(ip, "address", net.ParseIP("0.0.0.0"), "IP Address")
-	return f
+	flag := f.NewVar(ip, "address", net.ParseIP("0.0.0.0"), "IP Address")
+	return f, flag
 }
 
 func TestIP(t *testing.T) {
@@ -38,7 +38,7 @@ func TestIP(t *testing.T) {
 	os.Stderr = devnull
 	for i := range testCases {
 		var addr net.IP
-		f := setUpIP(&addr)
+		f, flag := setUpIP(&addr)
 
 		tc := &testCases[i]
 
@@ -51,10 +51,11 @@ func TestIP(t *testing.T) {
 			t.Errorf("expected failure")
 			continue
 		} else if tc.success {
-			ip, err := f.GetIP("address")
+			flag, err = f.Lookup[net.IP]("address")
 			if err != nil {
-				t.Errorf("Got error trying to fetch the IP flag: %v", err)
+				t.Fatal("Lookup[net.IP]:", err)
 			}
+			ip := flag.Get()
 			if ip.String() != tc.expected {
 				t.Errorf("expected %q, got %q", tc.expected, ip.String())
 			}
@@ -65,12 +66,13 @@ func TestIP(t *testing.T) {
 func TestIPNilDefault(t *testing.T) {
 	var addr net.IP
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPVar(&addr, "address", nil, "IP Address")
+	flag := f.NewVar(&addr, "address", nil, "IP Address")
 
-	ip, err := f.GetIP("address")
+	flag, err := f.Lookup[net.IP]("address")
 	if err != nil {
-		t.Fatalf("expected nil default IP to round-trip without error, got %v", err)
+		t.Fatal("Lookup[net.IP]:", err)
 	}
+	ip := flag.Get()
 	if ip != nil {
 		t.Fatalf("expected nil default IP, got %v", ip)
 	}

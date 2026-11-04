@@ -1,37 +1,25 @@
-package pflag
+package gpflag
 
-// -- func Value
-type funcValue func(string) error
-
-func (f funcValue) Set(s string) error { return f(s) }
-
-func (f funcValue) Type() string { return "func" }
-
-func (f funcValue) String() string { return "" } // same behavior as stdlib 'flag' package
-
-// Func defines a func flag with specified name, callback function and usage string.
-//
-// The callback function will be called every time "--{name}={value}" (or equivalent) is
-// parsed on the command line, with "{value}" as an argument.
-func (f *FlagSet) Func(name string, usage string, fn func(string) error) {
-	f.FuncP(name, "", usage, fn)
+// Func registers a callback receiving the unmodified argument text. Callback
+// errors leave the registration unchanged; callback side effects cannot be undone.
+func (fs *FlagSet) Func(name, usage string, fn func(string) error) {
+	fs.FuncP(name, "", usage, fn)
+}
+func (fs *FlagSet) FuncP(name, shorthand, usage string, fn func(string) error) {
+	if fn == nil {
+		panic("gpflag: nil callback")
+	}
+	fs.NewP(name, shorthand, "", usage, codecOption[string]{codec: actionCodec{fn}, name: "func"})
 }
 
-// FuncP is like Func, but accepts a shorthand letter that can be used after a single dash.
-func (f *FlagSet) FuncP(name string, shorthand string, usage string, fn func(string) error) {
-	var val Value = funcValue(fn)
-	f.VarP(val, name, shorthand, usage)
-}
+type actionCodec struct{ callback func(string) error }
 
-// Func defines a func flag with specified name, callback function and usage string.
-//
-// The callback function will be called every time "--{name}={value}" (or equivalent) is
-// parsed on the command line, with "{value}" as an argument.
-func Func(name string, usage string, fn func(string) error) {
-	CommandLine.FuncP(name, "", usage, fn)
+func (c actionCodec) parse(_ string, text string, _ bool) (string, error) {
+	return text, c.callback(text)
 }
+func (actionCodec) format(string) string { return "" }
 
-// FuncP is like Func, but accepts a shorthand letter that can be used after a single dash.
-func FuncP(name, shorthand string, usage string, fn func(string) error) {
+func Func(name, usage string, fn func(string) error) { CommandLine.Func(name, usage, fn) }
+func FuncP(name, shorthand, usage string, fn func(string) error) {
 	CommandLine.FuncP(name, shorthand, usage, fn)
 }

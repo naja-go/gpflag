@@ -1,14 +1,14 @@
-package pflag
+package gpflag
 
 import (
 	"os"
 	"testing"
 )
 
-func setUpCount(c *int) *FlagSet {
+func setUpCount(c *int) (*FlagSet, *Flag[int]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.CountVarP(c, "verbose", "v", "a counter")
-	return f
+	flag := f.NewVar((*int)(c), "verbose", int(0), "a counter", Count()).Short('v')
+	return f, flag
 }
 
 func TestCount(t *testing.T) {
@@ -32,7 +32,7 @@ func TestCount(t *testing.T) {
 	os.Stderr = devnull
 	for i := range testCases {
 		var count int
-		f := setUpCount(&count)
+		f, flag := setUpCount(&count)
 
 		tc := &testCases[i]
 
@@ -44,10 +44,11 @@ func TestCount(t *testing.T) {
 			t.Errorf("expected failure, got success")
 			continue
 		} else if tc.success {
-			c, err := f.GetCount("verbose")
+			flag, err = f.Lookup[int]("verbose")
 			if err != nil {
-				t.Errorf("Got error trying to fetch the counter flag")
+				t.Fatal("Lookup[int]:", err)
 			}
+			c := int(flag.Get())
 			if c != tc.expected {
 				t.Errorf("expected %d, got %d", tc.expected, c)
 			}
@@ -59,17 +60,17 @@ func TestCountPreservesValueOnError(t *testing.T) {
 	for _, input := range []string{"invalid", "999999999999999999999999999999999999"} {
 		t.Run(input, func(t *testing.T) {
 			var count int
-			f := setUpCount(&count)
+			f, _ := setUpCount(&count)
 			if err := f.Parse([]string{"-vv"}); err != nil {
 				t.Fatal(err)
 			}
-			if err := f.Set("verbose", input); err == nil {
+			if err := f.SetText("verbose", input); err == nil {
 				t.Fatal("expected invalid count to be rejected")
 			}
 			if count != 2 {
 				t.Errorf("invalid count changed the previous value: got %d, want 2", count)
 			}
-			if err := f.Set("verbose", "+1"); err != nil {
+			if err := f.SetText("verbose", "+1"); err != nil {
 				t.Fatal(err)
 			}
 			if count != 3 {

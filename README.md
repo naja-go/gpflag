@@ -1,370 +1,236 @@
-[![Build Status](https://github.com/spf13/pflag/actions/workflows/ci.yaml/badge.svg)](https://github.com/spf13/pflag/actions/workflows/ci.yaml)
-![GitHub License](https://img.shields.io/github/license/spf13/pflag)
-[![Go Report Card](https://goreportcard.com/badge/github.com/spf13/pflag)](https://goreportcard.com/report/github.com/spf13/pflag)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/spf13/pflag)](https://pkg.go.dev/github.com/spf13/pflag)
+# gpflag — Generic POSIX Flags
 
-## Description
+`gpflag` is a generics-native hard fork of
+[`spf13/pflag`](https://github.com/spf13/pflag), requiring **Go 1.27+**.
+It retains GNU/POSIX command-line parsing, but not pflag's Go API compatibility.
 
-pflag is a drop-in replacement for Go's flag package, implementing
-POSIX/GNU-style --flags.
-
-pflag is compatible with the [GNU extensions to the POSIX recommendations
-for command-line options][1]. For a more precise description, see the
-"Command-line flag syntax" section below.
-
-[1]: https://sourceware.org/glibc/manual/latest/html_node/Argument-Syntax.html
-
-pflag is available under the same style of BSD license as the Go language,
-which can be found in the LICENSE file.
-
-## Installation
-
-pflag is available using the standard `go get` command.
-
-Install by running:
-
-    go get github.com/spf13/pflag@latest
-
-Run tests by running:
-
-    go test github.com/spf13/pflag
-
-## Usage
-
-pflag is a drop-in replacement of Go's native flag package. If you import
-pflag under the name "flag" then all code should continue to function
-with no changes.
-
-``` go
-import flag "github.com/spf13/pflag"
+```sh
+go get github.com/naja-go/gpflag@latest
 ```
 
-There is one exception to this: if you directly instantiate the Flag struct
-there is one more field "Shorthand" that you will need to set.
-Most code never instantiates this struct directly, and instead uses
-functions such as String(), BoolVar(), and Var(), and is therefore
-unaffected.
-
-Define flags using flag.String(), Bool(), Int(), etc.
-
-This declares an integer flag, -flagname, stored in the pointer ip, with type *int.
-
-``` go
-var ip *int = flag.Int("flagname", 1234, "help message for flagname")
-```
-
-If you like, you can bind the flag to a variable using the Var() functions.
-
-``` go
-var flagvar int
-func init() {
-    flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
-}
-```
-
-Or you can create custom flags that satisfy the Value interface (with
-pointer receivers) and couple them to flag parsing by
-
-``` go
-flag.Var(&flagVal, "name", "help message for flagname")
-```
-
-For such flags, the default value is just the initial value of the variable.
-
-After all flags are defined, call
-
-``` go
-flag.Parse()
-```
-
-to parse the command line into the defined flags.
-
-Flags may then be used directly. If you're using the flags themselves,
-they are all pointers; if you bind to variables, they're values.
-
-``` go
-fmt.Println("ip has value ", *ip)
-fmt.Println("flagvar has value ", flagvar)
-```
-
-There are helper functions available to get the value stored in a Flag if you have a FlagSet but find
-it difficult to keep up with all of the pointers in your code.
-If you have a pflag.FlagSet with a flag called 'flagname' of type int you
-can use GetInt() to get the int value. But notice that 'flagname' must exist
-and it must be an int. GetString("flagname") will fail.
-
-``` go
-i, err := flagset.GetInt("flagname")
-```
-
-After parsing, the arguments after the flag are available as the
-slice flag.Args() or individually as flag.Arg(i).
-The arguments are indexed from 0 through flag.NArg()-1.
-
-The pflag package also defines some new functions that are not in flag,
-that give one-letter shorthands for flags. You can use these by appending
-'P' to the name of any function that defines a flag.
-
-``` go
-var ip = flag.IntP("flagname", "f", 1234, "help message")
-var flagvar bool
-func init() {
-	flag.BoolVarP(&flagvar, "boolname", "b", true, "help message")
-}
-flag.VarP(&flagVal, "varname", "v", "help message")
-```
-
-Shorthand letters can be used with single dashes on the command line.
-Boolean shorthand flags can be combined with other shorthand flags.
-
-The default set of command-line flags is controlled by
-top-level functions.  The FlagSet type allows one to define
-independent sets of flags, such as to implement subcommands
-in a command-line interface. The methods of FlagSet are
-analogous to the top-level functions for the command-line
-flag set.
-
-## Setting no option default values for flags
-
-After you create a flag it is possible to set the pflag.NoOptDefVal for
-the given flag. Doing this changes the meaning of the flag slightly. If
-a flag has a NoOptDefVal and the flag is set on the command line without
-an option the flag will be set to the NoOptDefVal. For example given:
-
-``` go
-var ip = flag.IntP("flagname", "f", 1234, "help message")
-flag.Lookup("flagname").NoOptDefVal = "4321"
-```
-
-Would result in something like
-
-| Parsed Arguments | Resulting Value |
-| -------------    | -------------   |
-| --flagname=1357  | ip=1357         |
-| --flagname       | ip=4321         |
-| [nothing]        | ip=1234         |
-
-## Command line flag syntax
-
-```
---flag    // boolean flags, or flags with no option default values
---flag x  // only on flags without a default value
---flag=x
-```
-
-Unlike the flag package, a single dash before an option means something
-different than a double dash. Single dashes signify a series of shorthand
-letters for flags. All but the last shorthand letter must be boolean flags
-or a flag with a default value
-
-```
-// boolean or flags where the 'no option default value' is set
--f
--f=true
--abc
-but
--b true is INVALID
-
-// non-boolean and flags without a 'no option default value'
--n 1234
--n=1234
--n1234
-
-// mixed
--abcs "hello"
--absd="hello"
--abcs1234
-```
-
-Flag parsing stops after the terminator "--". Unlike the flag package,
-flags can be interspersed with arguments anywhere on the command line
-before this terminator.
-
-To stop parsing at the first non-flag argument, call
-`flag.SetInterspersed(false)` before `flag.Parse()`, or use
-`flags.SetInterspersed(false)` on a `FlagSet`. This is useful for wrappers
-that pass a command and its remaining arguments through unchanged:
-
-```go
-flags := flag.NewFlagSet("wrapper", flag.ContinueOnError)
-verbose := flags.Bool("verbose", false, "verbose output")
-flags.SetInterspersed(false)
-if err := flags.Parse([]string{"--verbose", "echo", "--verbose", "hello"}); err != nil {
-	panic(err)
-}
-fmt.Println(*verbose)     // true
-fmt.Println(flags.Args()) // [echo --verbose hello]
-```
-
-The second `--verbose` belongs to `echo`, so it is left in `flags.Args()`
-along with every argument after the command, even if it names a known flag.
-
-Integer flags accept 1234, 0664, 0x1234 and may be negative.
-Boolean flags (in their long form) accept 1, 0, t, f, true, false,
-TRUE, FALSE, True, False.
-Duration flags accept any input valid for time.ParseDuration.
-
-## Mutating or "Normalizing" Flag names
-
-It is possible to set a custom flag name 'normalization function.' It allows flag names to be mutated both when created in the code and when used on the command line to some 'normalized' form. The 'normalized' form is used for comparison. Two examples of using the custom normalization func follow.
-
-**Example #1**: You want -, _, and . in flags to compare the same. aka --my-flag == --my_flag == --my.flag
-
-``` go
-func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	from := []string{"-", "_"}
-	to := "."
-	for _, sep := range from {
-		name = strings.Replace(name, sep, to, -1)
-	}
-	return pflag.NormalizedName(name)
-}
-
-myFlagSet.SetNormalizeFunc(wordSepNormalizeFunc)
-```
-
-**Example #2**: You want to alias two flags. aka --old-flag-name == --new-flag-name
-
-``` go
-func aliasNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
-	switch name {
-	case "old-flag-name":
-		name = "new-flag-name"
-		break
-	}
-	return pflag.NormalizedName(name)
-}
-
-myFlagSet.SetNormalizeFunc(aliasNormalizeFunc)
-```
-
-## Deprecating a flag or its shorthand
-It is possible to deprecate a flag, or just its shorthand. Deprecating a flag/shorthand hides it from help text and prints a usage message when the deprecated flag/shorthand is used.
-
-**Example #1**: You want to deprecate a flag named "badflag" as well as inform the users what flag they should use instead.
-```go
-// deprecate a flag by specifying its name and a usage message
-flags.MarkDeprecated("badflag", "please use --good-flag instead")
-```
-This hides "badflag" from help text, and prints `Flag --badflag has been deprecated, please use --good-flag instead` when "badflag" is used.
-
-**Example #2**: You want to keep a flag name "noshorthandflag" but deprecate its shortname "n".
-```go
-// deprecate a flag shorthand by specifying its flag name and a usage message
-flags.MarkShorthandDeprecated("noshorthandflag", "please use --noshorthandflag only")
-```
-This hides the shortname "n" from help text, and prints `Flag shorthand -n has been deprecated, please use --noshorthandflag only` when the shorthand "n" is used.
-
-Note that usage message is essential here, and it should not be empty.
-
-## Hidden flags
-It is possible to mark a flag as hidden, meaning it will still function as normal, however will not show up in usage/help text.
-
-**Example**: You have a flag named "secretFlag" that you need for internal use only and don't want it showing up in help text, or for its usage text to be available.
-```go
-// hide a flag by specifying its name
-flags.MarkHidden("secretFlag")
-```
-
-## Disable sorting of flags
-`pflag` allows you to disable sorting of flags for help and usage message.
-
-`SortFlags` is a field on `FlagSet`, not a package-level variable. To disable
-sorting on the default `CommandLine` flag set, use `pflag.CommandLine.SortFlags`.
-
-**Example**:
-```go
-package main
-
-import (
-	"fmt"
-
-	"github.com/spf13/pflag"
-)
-
-func main() {
-	flags := pflag.NewFlagSet("example", pflag.ContinueOnError)
-	flags.BoolP("verbose", "v", false, "verbose output")
-	flags.String("coolflag", "yeaah", "it's really cool flag")
-	flags.Int("usefulflag", 777, "sometimes it's very useful")
-	flags.SortFlags = false
-	flags.PrintDefaults()
-	fmt.Println()
-}
-```
-
-For the default `CommandLine` flag set:
-
-```go
-pflag.CommandLine.SortFlags = false
-pflag.PrintDefaults()
-```
-**Output**:
-```
-  -v, --verbose           verbose output
-      --coolflag string   it's really cool flag (default "yeaah")
-      --usefulflag int    sometimes it's very useful (default 777)
-```
-
-
-## Supporting Go flags when using pflag
-In order to support flags defined using Go's `flag` package, they must be added to the `pflag` flagset. This is usually necessary
-to support flags defined by third-party dependencies (e.g. `golang/glog`).
-
-**Example**: You want to add the Go flags to the `CommandLine` flagset
-```go
-package main
-
-import (
-	goflag "flag"
-
-	flag "github.com/spf13/pflag"
-)
-
-var ip = flag.Int("flagname", 1234, "help message for flagname")
-
-func main() {
-	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
-	flag.Parse()
-}
-```
-
-### Using pflag with go test
-`pflag` does not parse the shorthand versions of go test's built-in flags (i.e., those starting with `-test.`).
-For more context, see issues [#63](https://github.com/spf13/pflag/issues/63) and [#238](https://github.com/spf13/pflag/issues/238) for more details.
-
-For example, if you use pflag in your `TestMain` function and call `pflag.Parse()` after defining your custom flags, running a test like this:
-```bash
-go test /your/tests -run ^YourTest -v --your-test-pflags
-```
-will result in the `-v` flag being ignored. This happens because of the way pflag handles flag parsing, skipping over go test's built-in shorthand flags.
-To work around this, you can use the `ParseSkippedFlags` function, which ensures that go test's flags are parsed separately using the standard flag package.
-
-**Example**: You want to parse go test flags that are otherwise ignore by `pflag.Parse()`
+## Quick start
 
 ```go
 package main
 
 import (
-	goflag "flag"
-    "os"
-
-	flag "github.com/spf13/pflag"
+    "fmt"
+    "github.com/naja-go/gpflag"
 )
 
-var ip = flag.Int("flagname", 1234, "help message for flagname")
-
 func main() {
-	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
-	flag.ParseSkippedFlags(os.Args[1:], goflag.CommandLine)
-	flag.Parse()
+    port := gpflag.NewP("port", "p", 8080, "listen port").Env("APP_PORT")
+    tags := gpflag.New[[]string]("tag", nil, "tags")
+    verbose := gpflag.NewP("verbose", "v", false, "verbose output")
+
+    gpflag.Parse()
+    fmt.Println(port.Get(), tags.Get(), verbose.Get())
 }
 ```
 
-## More info
+`New[T]` returns the registered `*Flag[T]`, with one bound variable and an inline
+private `innerflag`. The set indexes that concrete view: metadata is directly
+accessible, while a small internal interface dispatches behavior to the owning
+flag. Typed codecs hold parsing configuration, not values or occurrence state.
+There is no `Value` interface or stored dispatch closure. Flags must not be copied.
 
-You can see the full reference documentation of the pflag package
-at [pkg.go.dev][2], or through go's standard documentation system by
-cloning the repository and running `go doc -http` in it.
+## Constructors and flag sets
 
-[2]: https://pkg.go.dev/github.com/spf13/pflag
+The same constructors exist on `gpflag.CommandLine` and individual sets:
+
+```go
+fs := gpflag.NewFlagSet("serve", gpflag.ContinueOnError)
+port := fs.NewP("port", "p", 8080, "listen port")
+
+var host string
+fs.NewVar(&host, "host", "localhost", "listen host")
+var secure bool
+fs.NewVarP(&secure, "secure", "s", false, "enable TLS")
+
+if err := fs.Parse(os.Args[1:]); err != nil {
+    return err
+}
+fmt.Println(port.Get(), host, secure)
+```
+
+- `New(name, default, usage)` allocates the bound variable.
+- `NewP(name, shorthand, default, usage)` also registers a shorthand.
+- `NewVar(pointer, name, default, usage)` binds an existing variable.
+- `NewVarP(pointer, name, shorthand, default, usage)` does both.
+
+All accept trailing typed options. Shorthands are single ASCII characters;
+`.Short('p')` can also set or replace one after registration. Invalid definitions
+(duplicate names/shorthands, nil binding pointers, unsupported types) panic
+before publishing the registration.
+
+## Values and text
+
+```go
+port.Set(9090)                    // typed assignment; records the change
+err := port.SetText("9090")       // parse command-line text
+err = fs.SetText("port", "9090") // parse text by name
+```
+
+`Set(T)` replaces the current value, including collections. Text assignments
+follow the flag's repetition rules: slices append after the first assignment,
+and maps merge. The first text assignment replaces collection defaults.
+
+`Get()` returns `T` without deep copying. Slices, maps, and pointers share their
+underlying storage. `Ptr()` exposes the bound variable. Direct writes through
+these references cannot participate in assignment tracking; use `Set` or
+`SetText` when tracking is needed.
+
+## Supported types and parsing options
+
+Built-in parsers support:
+
+- `string`, `bool`, all signed/unsigned integer widths, `float32`, `float64`;
+- `time.Duration`, `time.Time`;
+- `net.IP`, `net.IPNet`, `net.IPMask`;
+- `[]string`, `[]bool`, `[]int`, `[]int32`, `[]int64`, `[]uint`,
+  `[]float32`, `[]float64`, `[]time.Duration`, `[]byte`, `[]net.IP`, `[]net.IPNet`;
+- `map[string]string`, `map[string]int`, `map[string]int64`.
+
+Parsing behavior is configuration, not a different Go value type:
+
+```go
+count := fs.NewP("verbose", "v", 0, "verbosity", gpflag.Count())
+items := fs.New[[]string]("item", nil, "verbatim items", gpflag.StringArray())
+blob := fs.New[[]byte]("blob", nil, "base64 data", gpflag.Base64())
+date := fs.New("date", time.Time{}, "date", gpflag.TimeFormats("2006-01-02"))
+```
+
+`Count()` applies to `int`, `StringArray()` to `[]string`, `Base64()` to `[]byte`,
+and `TimeFormats()` to `time.Time`. Inapplicable options are compile-time errors.
+Options are sealed typed interfaces; a nil option is an invalid definition.
+Plain `[]string` uses CSV syntax; plain `[]byte` uses hexadecimal. Time defaults
+to RFC3339Nano. Integer widths are checked, including native `int`/`uint` widths.
+
+## Looking up and inspecting flags
+
+```go
+port, err := fs.Lookup[int]("port")
+if err != nil {
+    return err
+}
+fmt.Println(port.Get(), port.Meta().Usage)
+```
+
+Lookup returns the registered object, not a new handle. It applies name
+normalization and requires the exact Go type. For example, a count flag is an
+`int`; a distinct named integer type is not interchangeable with it.
+Missing names, mismatches, and opaque imported Go flags return a nil flag and
+an error. `gpflag.Lookup[T]` searches `CommandLine`.
+
+`Meta()` returns a `FlagMeta` snapshot with names, usage, presentation type,
+original default text, change status, and annotations. Its annotation data is
+copied. Changing a snapshot does not change the flag or its registration.
+Use `VisitAll(func(gpflag.FlagMeta))` for all metadata and `Visit` for assigned flags.
+`ShorthandLookup` also returns a snapshot (or nil).
+
+## Environment fallback
+
+```go
+port := fs.New("port", 8080, "port").Env("APP_PORT")
+```
+
+Command-line or programmatic assignments take precedence over the environment,
+which takes precedence over the default. Environment variables are read during
+`Parse`/`ParseAll`; malformed values are errors. `.Env("")` removes the binding.
+
+`ParseAll` sends command-line text and `FlagMeta` snapshots to a callback. The
+callback can collect values without assigning them, or call `fs.SetText`.
+Environment fallback happens afterward, without calling the callback, and never
+replaces a flag successfully handled on the command line.
+
+## Custom parsing
+
+Types implementing `encoding.TextUnmarshaler` on `T` or `*T` can be registered
+directly. `encoding.TextMarshaler`, when available, supplies formatting.
+Non-nil custom pointers retain their identity. Nil custom pointer defaults are
+rejected.
+
+For other types, supply typed parsing and formatting explicitly. These callbacks
+(and `Func` callbacks) are the intentional exception to method-based codecs:
+
+```go
+type level struct { n int }
+
+lvl := fs.New("level", level{n: 1}, "log level", gpflag.WithParser(
+    func(_ level, text string, first bool) (level, error) {
+        n, err := strconv.Atoi(text)
+        return level{n: n}, err
+    },
+    func(value level) string { return strconv.Itoa(value.n) },
+))
+```
+
+The parser receives the current value and whether this is its first successful
+assignment. Return the next value or an error. Do not mutate shared input data
+before returning an error: custom pointer unmarshaling and callback side effects
+cannot be rolled back. Built-in collection parsers validate incoming data before
+mutating their destination.
+
+There are no `Var`, `Value`, `SliceValue`, or special wrapper value types.
+`Func`/`FuncP` and `BoolFunc`/`BoolFuncP` remain available for text callbacks.
+
+## Inheriting flags
+
+`dest.AddFlag(flag)` and `dest.AddFlagSet(source)` create independent
+registrations sharing bound variables. Each set owns its metadata, normalized
+names, environment binding, and assignment tracking. Subsequent lookups return
+the destination's actual registration. `AddFlagSet` skips names already defined
+in the destination. Sharing variables does not make concurrent parsing safe.
+
+## Command-line syntax
+
+Flags may be written as `--flag=value` or `--flag value`. Boolean flags and
+count flags accept bare occurrences. Single-dash arguments are shorthand
+clusters: `-vvv`, `-p8080`, or `-p 8080`. All but the final shorthand must accept
+an omitted argument. `.SetNoOptDefVal("text")` configures omitted arguments for
+other flag types.
+
+Parsing stops at `--`. By default flags can be interspersed with positional
+arguments; `SetInterspersed(false)` stops parsing at the first positional
+argument. Integer flags accept decimal, octal, and hexadecimal notation;
+booleans accept the forms supported by `strconv.ParseBool`.
+
+## Configuration
+
+```go
+fs.SetNormalizeFunc(func(_ *gpflag.FlagSet, name string) gpflag.NormalizedName {
+    return gpflag.NormalizedName(strings.ReplaceAll(name, "_", "-"))
+})
+fs.New("old", 0, "old flag").MarkDeprecated("use --new")
+fs.New("secret", "", "secret flag").MarkHidden()
+fs.SortFlags = false // preserve definition order in help and visits
+```
+
+Normalization collisions are rejected without changing registrations.
+Metadata setters, including `.SetAnnotations` and `.MarkShorthandDeprecated`,
+operate on the registered flag rather than a mutable public metadata struct.
+
+## Standard-library interoperability
+
+`AddGoFlagSet` imports standard-library flags as explicitly opaque entries.
+Read them through their original bound variables; typed lookup does not guess
+Go types from their parsers.
+
+`CopyToGoFlagSet` shares variables with a standard-library set. Native scalar
+registrations preserve Go's help formatting; custom parsers use edge adapters.
+The exported set follows Go's argument syntax, not all POSIX omission rules.
+Native writes bypass gpflag assignment tracking, just like direct variable
+writes. `ParseSkippedFlags` handles the `-test.*` flags skipped by gpflag.
+
+## Development
+
+```sh
+go test ./...
+go test -race ./...
+go vet ./...
+```
+
+GNU/POSIX syntax reference:
+<https://sourceware.org/glibc/manual/latest/html_node/Argument-Syntax.html>
+
+Licensed under the BSD license in [LICENSE](LICENSE).

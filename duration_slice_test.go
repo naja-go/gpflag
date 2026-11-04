@@ -2,7 +2,7 @@
 // Use of this source code ds governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -11,30 +11,31 @@ import (
 	"time"
 )
 
-func setUpDSFlagSet(dsp *[]time.Duration) *FlagSet {
+func setUpDSFlagSet(dsp *[]time.Duration) (*FlagSet, *Flag[[]time.Duration]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.DurationSliceVar(dsp, "ds", []time.Duration{}, "Command separated list!")
-	return f
+	flag := f.NewVar(dsp, "ds", []time.Duration{}, "Command separated list!")
+	return f, flag
 }
 
-func setUpDSFlagSetWithDefault(dsp *[]time.Duration) *FlagSet {
+func setUpDSFlagSetWithDefault(dsp *[]time.Duration) (*FlagSet, *Flag[[]time.Duration]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.DurationSliceVar(dsp, "ds", []time.Duration{0, 1}, "Command separated list!")
-	return f
+	flag := f.NewVar(dsp, "ds", []time.Duration{0, 1}, "Command separated list!")
+	return f, flag
 }
 
 func TestEmptyDS(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSet(&ds)
+	f, flag := setUpDSFlagSet(&ds)
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	flag, err = f.Lookup[[]time.Duration]("ds")
 	if err != nil {
-		t.Fatal("got an error from GetDurationSlice():", err)
+		t.Fatal("Lookup[[]time.Duration]:", err)
 	}
+	getDS := flag.Get()
 	if len(getDS) != 0 {
 		t.Fatalf("got ds %v with len=%d but expected length=0", getDS, len(getDS))
 	}
@@ -42,7 +43,7 @@ func TestEmptyDS(t *testing.T) {
 
 func TestDS(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSet(&ds)
+	f, flag := setUpDSFlagSet(&ds)
 
 	vals := []string{"1ns", "2ms", "3m", "4h"}
 	arg := fmt.Sprintf("--ds=%s", strings.Join(vals, ","))
@@ -59,10 +60,11 @@ func TestDS(t *testing.T) {
 			t.Fatalf("expected ds[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getDS, err := f.GetDurationSlice("ds")
+	flag, err = f.Lookup[[]time.Duration]("ds")
 	if err != nil {
-		t.Fatalf("got error: %v", err)
+		t.Fatal("Lookup[[]time.Duration]:", err)
 	}
+	getDS := flag.Get()
 	for i, v := range getDS {
 		d, err := time.ParseDuration(vals[i])
 		if err != nil {
@@ -76,7 +78,7 @@ func TestDS(t *testing.T) {
 
 func TestDSDefault(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSetWithDefault(&ds)
+	f, flag := setUpDSFlagSetWithDefault(&ds)
 
 	vals := []string{"0s", "1ns"}
 
@@ -94,10 +96,11 @@ func TestDSDefault(t *testing.T) {
 		}
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	flag, err = f.Lookup[[]time.Duration]("ds")
 	if err != nil {
-		t.Fatal("got an error from GetDurationSlice():", err)
+		t.Fatal("Lookup[[]time.Duration]:", err)
 	}
+	getDS := flag.Get()
 	for i, v := range getDS {
 		d, err := time.ParseDuration(vals[i])
 		if err != nil {
@@ -111,7 +114,7 @@ func TestDSDefault(t *testing.T) {
 
 func TestDSWithDefault(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSetWithDefault(&ds)
+	f, flag := setUpDSFlagSetWithDefault(&ds)
 
 	vals := []string{"1ns", "2ns"}
 	arg := fmt.Sprintf("--ds=%s", strings.Join(vals, ","))
@@ -129,10 +132,11 @@ func TestDSWithDefault(t *testing.T) {
 		}
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	flag, err = f.Lookup[[]time.Duration]("ds")
 	if err != nil {
-		t.Fatal("got an error from GetDurationSlice():", err)
+		t.Fatal("Lookup[[]time.Duration]:", err)
 	}
+	getDS := flag.Get()
 	for i, v := range getDS {
 		d, err := time.ParseDuration(vals[i])
 		if err != nil {
@@ -144,9 +148,9 @@ func TestDSWithDefault(t *testing.T) {
 	}
 }
 
-func TestDSAsSliceValue(t *testing.T) {
+func TestDSTypedReplacement(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSet(&ds)
+	f, _ := setUpDSFlagSet(&ds)
 
 	in := []string{"1ns", "2ns"}
 	argfmt := "--ds=%s"
@@ -157,11 +161,11 @@ func TestDSAsSliceValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	f.VisitAll(func(f *Flag) {
-		if val, ok := f.Value.(SliceValue); ok {
-			_ = val.Replace([]string{"3ns"})
-		}
-	})
+	flag, err := f.Lookup[[]time.Duration]("ds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag.Set([]time.Duration{3})
 	if len(ds) != 1 || ds[0] != time.Duration(3) {
 		t.Fatalf("Expected ss to be overwritten with '3ns', but got: %v", ds)
 	}
@@ -169,7 +173,7 @@ func TestDSAsSliceValue(t *testing.T) {
 
 func TestDSCalledTwice(t *testing.T) {
 	var ds []time.Duration
-	f := setUpDSFlagSet(&ds)
+	f, _ := setUpDSFlagSet(&ds)
 
 	in := []string{"1ns,2ns", "3ns"}
 	expected := []time.Duration{1, 2, 3}

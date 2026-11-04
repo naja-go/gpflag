@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
+	"bytes"
 	goflag "flag"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestGoflags(t *testing.T) {
-	goflag.String("stringFlag", "stringFlag", "stringFlag")
-	goflag.Bool("boolFlag", false, "boolFlag")
+	stringFlag := goflag.String("stringFlag", "stringFlag", "stringFlag")
+	boolFlag := goflag.Bool("boolFlag", false, "boolFlag")
 	var testxxxValue string
 	goflag.StringVar(&testxxxValue, "test.xxx", "test.xxx", "it is a test flag")
 
@@ -25,18 +27,12 @@ func TestGoflags(t *testing.T) {
 		t.Fatal("expected no error; get", err)
 	}
 
-	getString, err := f.GetString("stringFlag")
-	if err != nil {
-		t.Fatal("expected no error; get", err)
-	}
+	getString := *stringFlag
 	if getString != "bob" {
 		t.Fatalf("expected getString=bob but got getString=%s", getString)
 	}
 
-	getBool, err := f.GetBool("boolFlag")
-	if err != nil {
-		t.Fatal("expected no error; get", err)
-	}
+	getBool := *boolFlag
 	if getBool != true {
 		t.Fatalf("expected getBool=true but got getBool=%v", getBool)
 	}
@@ -64,16 +60,16 @@ func TestGoflags(t *testing.T) {
 func TestToGoflags(t *testing.T) {
 	pfs := FlagSet{}
 	gfs := goflag.FlagSet{}
-	pfs.String("StringFlag", "String value", "String flag usage")
-	pfs.Int("IntFlag", 1, "Int flag usage")
-	pfs.Uint("UintFlag", 2, "Uint flag usage")
-	pfs.Int64("Int64Flag", 3, "Int64 flag usage")
-	pfs.Uint64("Uint64Flag", 4, "Uint64 flag usage")
-	pfs.Int8("Int8Flag", 5, "Int8 flag usage")
-	pfs.Float64("Float64Flag", 6.0, "Float64 flag usage")
-	pfs.Duration("DurationFlag", time.Second, "Duration flag usage")
-	pfs.Bool("BoolFlag", true, "Bool flag usage")
-	pfs.String("deprecated", "Deprecated value", "Deprecated flag usage")
+	pfs.New[string]("StringFlag", "String value", "String flag usage").Ptr()
+	pfs.New[int]("IntFlag", 1, "Int flag usage").Ptr()
+	pfs.New[uint]("UintFlag", 2, "Uint flag usage").Ptr()
+	pfs.New[int64]("Int64Flag", 3, "Int64 flag usage").Ptr()
+	pfs.New[uint64]("Uint64Flag", 4, "Uint64 flag usage").Ptr()
+	pfs.New[int8]("Int8Flag", 5, "Int8 flag usage").Ptr()
+	pfs.New[float64]("Float64Flag", 6.0, "Float64 flag usage").Ptr()
+	pfs.New[time.Duration]("DurationFlag", time.Second, "Duration flag usage").Ptr()
+	pfs.New[bool]("BoolFlag", true, "Bool flag usage").Ptr()
+	pfs.New[string]("deprecated", "Deprecated value", "Deprecated flag usage").Ptr()
 	_ = pfs.MarkDeprecated("deprecated", "obsolete")
 
 	pfs.CopyToGoFlagSet(&gfs)
@@ -90,33 +86,33 @@ func TestToGoflags(t *testing.T) {
 		"Float64Flag": "16.0",
 		"BoolFlag":    "false",
 	} {
-		pf := pfs.Lookup(name)
+		pf := pfs.lookupCore(name)
 		if pf == nil {
 			t.Errorf("%s: not found in pflag flag set", name)
 			continue
 		}
-		if err := pf.Value.Set(value); err != nil {
+		if err := pfs.SetText(pf.Name, value); err != nil {
 			t.Errorf("error setting %s = %s: %v", name, value, err)
 		}
 	}
 
 	// Check that all flags were added and share the same value.
-	pfs.VisitAll(func(pf *Flag) {
+	pfs.VisitAll(func(pf FlagMeta) {
 		gf := gfs.Lookup(pf.Name)
 		if gf == nil {
 			t.Errorf("%s: not found in Go flag set", pf.Name)
 			return
 		}
-		if gf.Value.String() != pf.Value.String() {
+		if gf.Value.String() != pfs.formal[NormalizedName(pf.Name)].text() {
 			t.Errorf("%s: expected value %v from Go flag set, got %v",
-				pf.Name, pf.Value, gf.Value)
+				pf.Name, pfs.formal[NormalizedName(pf.Name)].text(), gf.Value)
 			return
 		}
 	})
 
 	// Check for unexpected additional flags.
 	gfs.VisitAll(func(gf *goflag.Flag) {
-		pf := pfs.Lookup(gf.Name)
+		pf := pfs.lookupCore(gf.Name)
 		if pf == nil {
 			t.Errorf("%s: not found in pflag flag set", gf.Name)
 			return
@@ -130,6 +126,18 @@ func TestToGoflags(t *testing.T) {
 		expectedUsage := "Deprecated flag usage (DEPRECATED: obsolete)"
 		if deprecated.Usage != expectedUsage {
 			t.Errorf("deprecation remark not added, expected usage %q, got %q", expectedUsage, deprecated.Usage)
+		}
+	}
+
+	var help bytes.Buffer
+	gfs.SetOutput(&help)
+	gfs.PrintDefaults()
+	if strings.Contains(help.String(), "panic") {
+		t.Fatalf("copied flags produced invalid help: %s", help.String())
+	}
+	for _, want := range []string{"-StringFlag string", "-IntFlag int", "-UintFlag uint", "-DurationFlag duration", "-Float64Flag float"} {
+		if !strings.Contains(help.String(), want) {
+			t.Errorf("copied help missing %q: %s", want, help.String())
 		}
 	}
 }
@@ -146,7 +154,7 @@ func TestCopyToGoFlagSetPreservesCurrentStringValue(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pfs := NewFlagSet("source", ContinueOnError)
-			value := pfs.String("name", "default", "a string flag")
+			value := pfs.New[string]("name", "default", "a string flag").Ptr()
 			if err := pfs.Parse(tc.args); err != nil {
 				t.Fatal(err)
 			}
@@ -158,7 +166,7 @@ func TestCopyToGoFlagSetPreservesCurrentStringValue(t *testing.T) {
 			if got := gfs.Lookup("name").Value.String(); got != tc.want {
 				t.Errorf("copied value = %q, want %q", got, tc.want)
 			}
-			if got := pfs.Lookup("name").DefValue; got != "default" {
+			if got := pfs.lookupCore("name").DefValue; got != "default" {
 				t.Errorf("source default = %q, want %q", got, "default")
 			}
 			if got := gfs.Lookup("name").DefValue; got != tc.want {
@@ -170,7 +178,7 @@ func TestCopyToGoFlagSetPreservesCurrentStringValue(t *testing.T) {
 			if *value != "from-go" {
 				t.Errorf("Go flag update not shared with source: got %q", *value)
 			}
-			if err := pfs.Set("name", "from-pflag"); err != nil {
+			if err := pfs.SetText("name", "from-pflag"); err != nil {
 				t.Fatal(err)
 			}
 			if got := gfs.Lookup("name").Value.String(); got != "from-pflag" {

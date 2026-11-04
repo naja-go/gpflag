@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	"bytes"
@@ -21,15 +21,8 @@ const (
 
 const strTriStateMaybe = "maybe"
 
-func (v *triStateValue) IsBoolFlag() bool {
-	return true
-}
-
-func (v *triStateValue) Get() interface{} {
-	return *v
-}
-
-func (v *triStateValue) Set(s string) error {
+func (v *triStateValue) UnmarshalText(text []byte) error {
+	s := string(text)
 	if s == strTriStateMaybe {
 		*v = triStateMaybe
 		return nil
@@ -50,16 +43,14 @@ func (v *triStateValue) String() string {
 	return strconv.FormatBool(*v == triStateTrue)
 }
 
-// The type of the flag as required by the pflag.Value interface
-func (v *triStateValue) Type() string {
-	return "version"
+func (v triStateValue) MarshalText() ([]byte, error) {
+	return []byte((&v).String()), nil
 }
 
 func setUpFlagSet(tristate *triStateValue) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
 	*tristate = triStateFalse
-	flag := f.VarPF(tristate, "tristate", "t", "tristate value (true, maybe or false)")
-	flag.NoOptDefVal = "true"
+	f.NewVarP(tristate, "tristate", "t", triStateFalse, "tristate value (true, maybe or false)").SetNoOptDefVal("true")
 	return f
 }
 
@@ -152,11 +143,10 @@ func TestImplicitFalse(t *testing.T) {
 	}
 }
 
-func TestCustomIsBoolFlagGetsNoOptDefaultAutomatically(t *testing.T) {
+func TestCustomNoOptDefault(t *testing.T) {
 	var tristate triStateValue
 	f := NewFlagSet("test", ContinueOnError)
-	tristate = triStateFalse
-	f.VarPF(&tristate, "tristate", "t", "tristate value (true, maybe or false)")
+	f.NewVarP(&tristate, "tristate", "t", triStateFalse, "tristate value (true, maybe or false)").SetNoOptDefVal("true")
 
 	if err := f.Parse([]string{"--tristate"}); err != nil {
 		t.Fatal("expected no error; got", err)
@@ -166,11 +156,10 @@ func TestCustomIsBoolFlagGetsNoOptDefaultAutomatically(t *testing.T) {
 	}
 }
 
-func TestCustomIsBoolFlagShortFormGetsNoOptDefaultAutomatically(t *testing.T) {
+func TestCustomNoOptDefaultShorthand(t *testing.T) {
 	var tristate triStateValue
 	f := NewFlagSet("test", ContinueOnError)
-	tristate = triStateFalse
-	f.VarPF(&tristate, "tristate", "t", "tristate value (true, maybe or false)")
+	f.NewVarP(&tristate, "tristate", "t", triStateFalse, "tristate value (true, maybe or false)").SetNoOptDefVal("true")
 
 	if err := f.Parse([]string{"-t"}); err != nil {
 		t.Fatal("expected no error; got", err)
@@ -192,8 +181,8 @@ func TestInvalidValue(t *testing.T) {
 }
 
 func TestBoolP(t *testing.T) {
-	b := BoolP("bool", "b", false, "bool value in CommandLine")
-	c := BoolP("c", "c", false, "other bool value")
+	b := New[bool]("bool", false, "bool value in CommandLine").Short('b').Ptr()
+	c := New[bool]("c", false, "other bool value").Short('c').Ptr()
 	args := []string{"--bool"}
 	if err := CommandLine.Parse(args); err != nil {
 		t.Error("expected no error, got ", err)

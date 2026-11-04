@@ -1,8 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package pflag
+package gpflag
 
 import (
 	goflag "flag"
@@ -11,150 +7,114 @@ import (
 	"time"
 )
 
-// go test flags prefixes
-func isGotestFlag(flag string) bool {
-	return strings.HasPrefix(flag, "-test.")
+func isGotestFlag(flag string) bool          { return strings.HasPrefix(flag, "-test.") }
+func isGotestShorthandFlag(flag string) bool { return strings.HasPrefix(flag, "test.") }
+
+// Imported values have no trustworthy registered Go type for typed Lookup.
+type importedFlag struct {
+	inner innerflag
+	value goflag.Value
 }
 
-func isGotestShorthandFlag(flag string) bool {
-	return strings.HasPrefix(flag, "test.")
+func newImportedCore(fs *FlagSet, meta FlagMeta, value goflag.Value) *innerflag {
+	f := &importedFlag{inner: innerflag{FlagMeta: meta, fs: fs}, value: value}
+	f.inner.flagOps = f
+	return &f.inner
+}
+func (f *importedFlag) setText(text string) error { return f.value.Set(text) }
+func (f *importedFlag) text() string              { return f.value.String() }
+func (f *importedFlag) cloneFor(fs *FlagSet) *innerflag {
+	clone := *f
+	clone.inner.FlagMeta = copyFlagMeta(f.inner.FlagMeta)
+	clone.inner.fs, clone.inner.Changed = fs, false
+	clone.inner.flagOps = &clone
+	return &clone.inner
 }
 
-// flagValueWrapper implements pflag.Value around a flag.Value.  The main
-// difference here is the addition of the Type method that returns a string
-// name of the type.  As this is generally unknown, we approximate that with
-// reflection.
-type flagValueWrapper struct {
-	inner    goflag.Value
-	flagType string
-}
-
-// We are just copying the boolFlag interface out of goflag as that is what
-// they use to decide if a flag should get "true" when no arg is given.
-type goBoolFlag interface {
-	goflag.Value
-	IsBoolFlag() bool
-}
-
-func wrapFlagValue(v goflag.Value) Value {
-	// If the flag.Value happens to also be a pflag.Value, just use it directly.
-	if pv, ok := v.(Value); ok {
-		return pv
+// AddGoFlag imports a standard-library flag as an opaque registration. Read its
+// value using the original bound variable rather than typed Lookup.
+func (fs *FlagSet) AddGoFlag(flag *goflag.Flag) {
+	if fs.lookupCore(flag.Name) != nil {
+		return
 	}
-
-	pv := &flagValueWrapper{
-		inner: v,
-	}
-
-	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Interface || t.Kind() == reflect.Ptr {
+	t := reflect.TypeOf(flag.Value)
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-
-	pv.flagType = strings.TrimSuffix(t.Name(), "Value")
-	return pv
-}
-
-func (v *flagValueWrapper) String() string {
-	return v.inner.String()
-}
-
-func (v *flagValueWrapper) Set(s string) error {
-	return v.inner.Set(s)
-}
-
-func (v *flagValueWrapper) Type() string {
-	return v.flagType
-}
-
-// PFlagFromGoFlag will return a *pflag.Flag given a *flag.Flag
-// If the *flag.Flag.Name was a single character (ex: `v`) it will be accessiblei
-// with both `-v` and `--v` in flags. If the golang flag was more than a single
-// character (ex: `verbose`) it will only be accessible via `--verbose`
-func PFlagFromGoFlag(goflag *goflag.Flag) *Flag { //nolint:revive // ignore "func name will be used as pflag.PFlagFromGoFlag by other packages, and that stutters"
-	// Remember the default value as a string; it won't change.
-	flag := &Flag{
-		Name:  goflag.Name,
-		Usage: goflag.Usage,
-		Value: wrapFlagValue(goflag.Value),
-		// Looks like golang flags don't set DefValue correctly  :-(
-		// DefValue: goflag.DefValue,
-		DefValue: goflag.Value.String(),
+	meta := FlagMeta{Name: flag.Name, Usage: flag.Usage, DefValue: flag.DefValue, Type: strings.TrimSuffix(t.Name(), "Value")}
+	meta.zeroDefault = meta.DefValue == "" || meta.DefValue == "0" || meta.DefValue == "false" || meta.DefValue == "0s"
+	if len(meta.Name) == 1 {
+		meta.Shorthand = meta.Name
 	}
-	// Ex: if the golang flag was -v, allow both -v and --v to work
-	if len(flag.Name) == 1 {
-		flag.Shorthand = flag.Name
+	if value, ok := flag.Value.(interface{ IsBoolFlag() bool }); ok && value.IsBoolFlag() {
+		meta.boolFlag, meta.NoOptDefVal = true, "true"
 	}
-	if fv, ok := goflag.Value.(goBoolFlag); ok && fv.IsBoolFlag() {
-		flag.NoOptDefVal = "true"
-	}
-	return flag
+	fs.addFlag(newImportedCore(fs, meta, flag.Value))
 }
 
-// AddGoFlag will add the given *flag.Flag to the pflag.FlagSet
-func (f *FlagSet) AddGoFlag(goflag *goflag.Flag) {
-	if f.Lookup(goflag.Name) != nil {
+// AddGoFlagSet imports a standard-library set without guessing Go value types.
+func (fs *FlagSet) AddGoFlagSet(source *goflag.FlagSet) {
+	if source == nil {
 		return
 	}
-	newflag := PFlagFromGoFlag(goflag)
-	f.AddFlag(newflag)
+	source.VisitAll(fs.AddGoFlag)
+	fs.addedGoFlagSets = append(fs.addedGoFlagSets, source)
 }
 
-// AddGoFlagSet will add the given *flag.FlagSet to the pflag.FlagSet
-func (f *FlagSet) AddGoFlagSet(newSet *goflag.FlagSet) {
-	if newSet == nil {
-		return
-	}
-	newSet.VisitAll(func(goflag *goflag.Flag) {
-		f.AddGoFlag(goflag)
-	})
-	if f.addedGoFlagSets == nil {
-		f.addedGoFlagSets = make([]*goflag.FlagSet, 0)
-	}
-	f.addedGoFlagSets = append(f.addedGoFlagSets, newSet)
-}
+type goFlagAdapter struct{ flag *innerflag }
 
-// CopyToGoFlagSet will add all current flags to the given Go flag set.
-// Deprecation remarks get copied into the usage description.
-// Whenever possible, a flag gets added for which Go flags shows
-// a proper type in the help message.
-func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
-	f.VisitAll(func(flag *Flag) {
+func (a *goFlagAdapter) String() string {
+	if a.flag == nil {
+		return ""
+	}
+	return a.flag.text()
+}
+func (a *goFlagAdapter) Set(text string) error { return a.flag.fs.SetText(a.flag.Name, text) }
+func (a *goFlagAdapter) IsBoolFlag() bool      { return a.flag != nil && a.flag.boolFlag }
+
+// CopyToGoFlagSet shares bound variables with a standard-library set. Native
+// registrations preserve Go's help formatting. Native writes bypass this set's
+// assignment tracking, just like direct writes to a bound variable.
+func (fs *FlagSet) CopyToGoFlagSet(dest *goflag.FlagSet) {
+	fs.visitAll(func(flag *innerflag) {
 		usage := flag.Usage
 		if flag.Deprecated != "" {
 			usage += " (DEPRECATED: " + flag.Deprecated + ")"
 		}
-
-		switch value := flag.Value.(type) {
-		case *stringValue:
-			newSet.StringVar((*string)(value), flag.Name, *(*string)(value), usage)
-		case *intValue:
-			newSet.IntVar((*int)(value), flag.Name, *(*int)(value), usage)
-		case *int64Value:
-			newSet.Int64Var((*int64)(value), flag.Name, *(*int64)(value), usage)
-		case *uintValue:
-			newSet.UintVar((*uint)(value), flag.Name, *(*uint)(value), usage)
-		case *uint64Value:
-			newSet.Uint64Var((*uint64)(value), flag.Name, *(*uint64)(value), usage)
-		case *durationValue:
-			newSet.DurationVar((*time.Duration)(value), flag.Name, *(*time.Duration)(value), usage)
-		case *float64Value:
-			newSet.Float64Var((*float64)(value), flag.Name, *(*float64)(value), usage)
+		if !flag.native {
+			dest.Var(&goFlagAdapter{flag: flag}, flag.Name, usage)
+			return
+		}
+		switch f := flag.flagOps.(type) {
+		case *Flag[string]:
+			dest.StringVar(f.value, flag.Name, f.Get(), usage)
+		case *Flag[bool]:
+			dest.BoolVar(f.value, flag.Name, f.Get(), usage)
+		case *Flag[int]:
+			dest.IntVar(f.value, flag.Name, f.Get(), usage)
+		case *Flag[int64]:
+			dest.Int64Var(f.value, flag.Name, f.Get(), usage)
+		case *Flag[uint]:
+			dest.UintVar(f.value, flag.Name, f.Get(), usage)
+		case *Flag[uint64]:
+			dest.Uint64Var(f.value, flag.Name, f.Get(), usage)
+		case *Flag[float64]:
+			dest.Float64Var(f.value, flag.Name, f.Get(), usage)
+		case *Flag[time.Duration]:
+			dest.DurationVar(f.value, flag.Name, f.Get(), usage)
 		default:
-			newSet.Var(flag.Value, flag.Name, usage)
+			dest.Var(&goFlagAdapter{flag: flag}, flag.Name, usage)
 		}
 	})
 }
 
-// ParseSkippedFlags explicitly Parses go test flags (i.e. the one starting with '-test.') with goflag.Parse(),
-// since by default those are skipped by pflag.Parse().
-// Typical usage example: `ParseGoTestFlags(os.Args[1:], goflag.CommandLine)`
-func ParseSkippedFlags(osArgs []string, goFlagSet *goflag.FlagSet) error {
-	var skippedFlags []string
-	for _, f := range osArgs {
-		if isGotestFlag(f) {
-			skippedFlags = append(skippedFlags, f)
+// ParseSkippedFlags parses the -test.* arguments deliberately skipped by Parse.
+func ParseSkippedFlags(args []string, flags *goflag.FlagSet) error {
+	var skipped []string
+	for _, arg := range args {
+		if isGotestFlag(arg) {
+			skipped = append(skipped, arg)
 		}
 	}
-	return goFlagSet.Parse(skippedFlags)
+	return flags.Parse(skipped)
 }

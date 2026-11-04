@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-func setUpTimeVar(t *time.Time, formats []string) *FlagSet {
+func setUpTimeVar(t *time.Time, formats []string) (*FlagSet, *Flag[time.Time]) {
 	f := NewFlagSet("test", ContinueOnError)
-	f.TimeVar(t, "time", *t, formats, "Time")
-	return f
+	flag := f.NewVar(t, "time", *t, "Time", TimeFormats(formats...))
+	return f, flag
 }
 
 func TestTime(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTime(t *testing.T) {
 	for i := range testCases {
 		var timeVar time.Time
 		formats := []string{time.RFC3339Nano, time.RFC1123Z}
-		f := setUpTimeVar(&timeVar, formats)
+		f, flag := setUpTimeVar(&timeVar, formats)
 
 		tc := &testCases[i]
 
@@ -51,10 +51,11 @@ func TestTime(t *testing.T) {
 			t.Errorf("expected failure")
 			continue
 		} else if tc.success {
-			timeResult, err := f.GetTime("time")
+			flag, err = f.Lookup[time.Time]("time")
 			if err != nil {
-				t.Errorf("Got error trying to fetch the Time flag: %v", err)
+				t.Fatal("Lookup[time.Time]:", err)
 			}
+			timeResult := flag.Get()
 			if !timeResult.Equal(tc.expected) {
 				t.Errorf("expected %q, got %q", tc.expected.Format(time.RFC3339Nano), timeVar.Format(time.RFC3339Nano))
 			}
@@ -65,7 +66,7 @@ func TestTime(t *testing.T) {
 func usageForTimeFlagSet(t *testing.T, timeVar time.Time) string {
 	t.Helper()
 	formats := []string{time.RFC3339Nano, time.RFC1123Z}
-	f := setUpTimeVar(&timeVar, formats)
+	f, _ := setUpTimeVar(&timeVar, formats)
 	if err := f.Parse([]string{}); err != nil {
 		t.Fatalf("expected success, got %q", err)
 	}
