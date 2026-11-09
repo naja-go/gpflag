@@ -3,20 +3,20 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package pflag is a drop-in replacement for Go's flag package, implementing
+Package gpflag is a drop-in replacement for Go's flag package, implementing
 POSIX/GNU-style --flags.
 
-pflag is compatible with the GNU extensions to the POSIX recommendations
+gpflag is compatible with the GNU extensions to the POSIX recommendations
 for command-line options. See
 http://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html
 
 Usage:
 
-pflag is a drop-in replacement of Go's native flag package. If you import
-pflag under the name "flag" then all code should continue to function
+gpflag is a drop-in replacement of Go's native flag package. If you import
+gpflag under the name "flag" then all code should continue to function
 with no changes.
 
-	import flag "github.com/spf13/pflag"
+	import flag "github.com/naja-go/gpflag"
 
 There is one exception to this: if you directly instantiate the Flag struct
 there is one more field "Shorthand" that you will need to set.
@@ -60,7 +60,7 @@ After parsing, the arguments after the flag are available as the
 slice flag.Args() or individually as flag.Arg(i).
 The arguments are indexed from 0 through flag.NArg()-1.
 
-The pflag package also defines some new functions that are not in flag,
+The gpflag package also defines some new functions that are not in flag,
 that give one-letter shorthands for flags. You can use these by appending
 'P' to the name of any function that defines a flag.
 
@@ -109,7 +109,7 @@ in a command-line interface. The methods of FlagSet are
 analogous to the top-level functions for the command-line
 flag set.
 */
-package pflag
+package gpflag
 
 import (
 	"bytes"
@@ -123,7 +123,7 @@ import (
 )
 
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
-var ErrHelp = errors.New("pflag: help requested")
+var ErrHelp = errors.New("gpflag: help requested")
 
 // ErrorHandling defines how to handle flag parsing errors.
 type ErrorHandling int

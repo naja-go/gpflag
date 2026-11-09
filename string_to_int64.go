@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 import (
 	"bytes"

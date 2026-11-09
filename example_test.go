@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag_test
+package gpflag_test
 
 import (
 	"fmt"
 
-	"github.com/spf13/pflag"
+	"github.com/naja-go/gpflag"
 )
 
 func ExampleShorthandLookup() {
 	name := "verbose"
 	short := name[:1]
 
-	pflag.BoolP(name, short, false, "verbose output")
+	gpflag.BoolP(name, short, false, "verbose output")
 
 	// len(short) must be == 1
-	flag := pflag.ShorthandLookup(short)
+	flag := gpflag.ShorthandLookup(short)
 
 	fmt.Println(flag.Name)
 }
@@ -26,7 +26,7 @@ func ExampleFlagSet_ShorthandLookup() {
 	name := "verbose"
 	short := name[:1]
 
-	fs := pflag.NewFlagSet("Example", pflag.ContinueOnError)
+	fs := gpflag.NewFlagSet("Example", gpflag.ContinueOnError)
 	fs.BoolP(name, short, false, "verbose output")
 
 	// len(short) must be == 1
@@ -42,7 +42,7 @@ func ExampleFlagSet_StringToString() {
 		"--arg=d=4",
 	}
 
-	fs := pflag.NewFlagSet("Example", pflag.ContinueOnError)
+	fs := gpflag.NewFlagSet("Example", gpflag.ContinueOnError)
 	fs.StringToString("arg", make(map[string]string), "string-to-string arg accepting key=value pairs")
 
 	if err := fs.Parse(args); err != nil {
@@ -59,7 +59,7 @@ func ExampleFlagSet_StringToString() {
 }
 
 func ExampleFlagSet_SetInterspersed() {
-	flags := pflag.NewFlagSet("wrapper", pflag.ContinueOnError)
+	flags := gpflag.NewFlagSet("wrapper", gpflag.ContinueOnError)
 	verbose := flags.Bool("verbose", false, "verbose output")
 	flags.SetInterspersed(false)
 	if err := flags.Parse([]string{"--verbose", "echo", "--verbose", "hello"}); err != nil {

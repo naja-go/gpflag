@@ -1,42 +1,42 @@
-[![Build Status](https://github.com/spf13/pflag/actions/workflows/ci.yaml/badge.svg)](https://github.com/spf13/pflag/actions/workflows/ci.yaml)
-![GitHub License](https://img.shields.io/github/license/spf13/pflag)
-[![Go Report Card](https://goreportcard.com/badge/github.com/spf13/pflag)](https://goreportcard.com/report/github.com/spf13/pflag)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/spf13/pflag)](https://pkg.go.dev/github.com/spf13/pflag)
+[![Build Status](https://github.com/naja-go/gpflag/actions/workflows/ci.yaml/badge.svg)](https://github.com/naja-go/gpflag/actions/workflows/ci.yaml)
+![GitHub License](https://img.shields.io/github/license/naja-go/gpflag)
+[![Go Report Card](https://goreportcard.com/badge/github.com/naja-go/gpflag)](https://goreportcard.com/report/github.com/naja-go/gpflag)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/naja-go/gpflag)](https://pkg.go.dev/github.com/naja-go/gpflag)
 
 ## Description
 
-pflag is a drop-in replacement for Go's flag package, implementing
+gpflag is a drop-in replacement for Go's flag package, implementing
 POSIX/GNU-style --flags.
 
-pflag is compatible with the [GNU extensions to the POSIX recommendations
+gpflag is compatible with the [GNU extensions to the POSIX recommendations
 for command-line options][1]. For a more precise description, see the
 "Command-line flag syntax" section below.
 
 [1]: https://sourceware.org/glibc/manual/latest/html_node/Argument-Syntax.html
 
-pflag is available under the same style of BSD license as the Go language,
+gpflag is available under the same style of BSD license as the Go language,
 which can be found in the LICENSE file.
 
 ## Installation
 
-pflag is available using the standard `go get` command.
+gpflag is available using the standard `go get` command.
 
 Install by running:
 
-    go get github.com/spf13/pflag@latest
+    go get github.com/naja-go/gpflag@latest
 
 Run tests by running:
 
-    go test github.com/spf13/pflag
+    go test github.com/naja-go/gpflag
 
 ## Usage
 
-pflag is a drop-in replacement of Go's native flag package. If you import
-pflag under the name "flag" then all code should continue to function
+gpflag is a drop-in replacement of Go's native flag package. If you import
+gpflag under the name "flag" then all code should continue to function
 with no changes.
 
 ``` go
-import flag "github.com/spf13/pflag"
+import flag "github.com/naja-go/gpflag"
 ```
 
 There is one exception to this: if you directly instantiate the Flag struct
@@ -89,7 +89,7 @@ fmt.Println("flagvar has value ", flagvar)
 
 There are helper functions available to get the value stored in a Flag if you have a FlagSet but find
 it difficult to keep up with all of the pointers in your code.
-If you have a pflag.FlagSet with a flag called 'flagname' of type int you
+If you have a gpflag.FlagSet with a flag called 'flagname' of type int you
 can use GetInt() to get the int value. But notice that 'flagname' must exist
 and it must be an int. GetString("flagname") will fail.
 
@@ -101,7 +101,7 @@ After parsing, the arguments after the flag are available as the
 slice flag.Args() or individually as flag.Arg(i).
 The arguments are indexed from 0 through flag.NArg()-1.
 
-The pflag package also defines some new functions that are not in flag,
+The gpflag package also defines some new functions that are not in flag,
 that give one-letter shorthands for flags. You can use these by appending
 'P' to the name of any function that defines a flag.
 
@@ -126,7 +126,7 @@ flag set.
 
 ## Setting no option default values for flags
 
-After you create a flag it is possible to set the pflag.NoOptDefVal for
+After you create a flag it is possible to set the gpflag.NoOptDefVal for
 the given flag. Doing this changes the meaning of the flag slightly. If
 a flag has a NoOptDefVal and the flag is set on the command line without
 an option the flag will be set to the NoOptDefVal. For example given:
@@ -211,13 +211,13 @@ It is possible to set a custom flag name 'normalization function.' It allows fla
 **Example #1**: You want -, _, and . in flags to compare the same. aka --my-flag == --my_flag == --my.flag
 
 ``` go
-func wordSepNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
+func wordSepNormalizeFunc(f *gpflag.FlagSet, name string) gpflag.NormalizedName {
 	from := []string{"-", "_"}
 	to := "."
 	for _, sep := range from {
 		name = strings.Replace(name, sep, to, -1)
 	}
-	return pflag.NormalizedName(name)
+	return gpflag.NormalizedName(name)
 }
 
 myFlagSet.SetNormalizeFunc(wordSepNormalizeFunc)
@@ -226,13 +226,13 @@ myFlagSet.SetNormalizeFunc(wordSepNormalizeFunc)
 **Example #2**: You want to alias two flags. aka --old-flag-name == --new-flag-name
 
 ``` go
-func aliasNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName {
+func aliasNormalizeFunc(f *gpflag.FlagSet, name string) gpflag.NormalizedName {
 	switch name {
 	case "old-flag-name":
 		name = "new-flag-name"
 		break
 	}
-	return pflag.NormalizedName(name)
+	return gpflag.NormalizedName(name)
 }
 
 myFlagSet.SetNormalizeFunc(aliasNormalizeFunc)
@@ -267,10 +267,10 @@ flags.MarkHidden("secretFlag")
 ```
 
 ## Disable sorting of flags
-`pflag` allows you to disable sorting of flags for help and usage message.
+`gpflag` allows you to disable sorting of flags for help and usage message.
 
 `SortFlags` is a field on `FlagSet`, not a package-level variable. To disable
-sorting on the default `CommandLine` flag set, use `pflag.CommandLine.SortFlags`.
+sorting on the default `CommandLine` flag set, use `gpflag.CommandLine.SortFlags`.
 
 **Example**:
 ```go
@@ -279,11 +279,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/spf13/pflag"
+	"github.com/naja-go/gpflag"
 )
 
 func main() {
-	flags := pflag.NewFlagSet("example", pflag.ContinueOnError)
+	flags := gpflag.NewFlagSet("example", gpflag.ContinueOnError)
 	flags.BoolP("verbose", "v", false, "verbose output")
 	flags.String("coolflag", "yeaah", "it's really cool flag")
 	flags.Int("usefulflag", 777, "sometimes it's very useful")
@@ -296,8 +296,8 @@ func main() {
 For the default `CommandLine` flag set:
 
 ```go
-pflag.CommandLine.SortFlags = false
-pflag.PrintDefaults()
+gpflag.CommandLine.SortFlags = false
+gpflag.PrintDefaults()
 ```
 **Output**:
 ```
@@ -307,8 +307,8 @@ pflag.PrintDefaults()
 ```
 
 
-## Supporting Go flags when using pflag
-In order to support flags defined using Go's `flag` package, they must be added to the `pflag` flagset. This is usually necessary
+## Supporting Go flags when using gpflag
+In order to support flags defined using Go's `flag` package, they must be added to the `gpflag` flagset. This is usually necessary
 to support flags defined by third-party dependencies (e.g. `golang/glog`).
 
 **Example**: You want to add the Go flags to the `CommandLine` flagset
@@ -318,7 +318,7 @@ package main
 import (
 	goflag "flag"
 
-	flag "github.com/spf13/pflag"
+	flag "github.com/naja-go/gpflag"
 )
 
 var ip = flag.Int("flagname", 1234, "help message for flagname")
@@ -329,18 +329,18 @@ func main() {
 }
 ```
 
-### Using pflag with go test
-`pflag` does not parse the shorthand versions of go test's built-in flags (i.e., those starting with `-test.`).
+### Using gpflag with go test
+`gpflag` does not parse the shorthand versions of go test's built-in flags (i.e., those starting with `-test.`).
 For more context, see issues [#63](https://github.com/spf13/pflag/issues/63) and [#238](https://github.com/spf13/pflag/issues/238) for more details.
 
-For example, if you use pflag in your `TestMain` function and call `pflag.Parse()` after defining your custom flags, running a test like this:
+For example, if you use gpflag in your `TestMain` function and call `gpflag.Parse()` after defining your custom flags, running a test like this:
 ```bash
-go test /your/tests -run ^YourTest -v --your-test-pflags
+go test /your/tests -run ^YourTest -v --your-test-gpflags
 ```
-will result in the `-v` flag being ignored. This happens because of the way pflag handles flag parsing, skipping over go test's built-in shorthand flags.
+will result in the `-v` flag being ignored. This happens because of the way gpflag handles flag parsing, skipping over go test's built-in shorthand flags.
 To work around this, you can use the `ParseSkippedFlags` function, which ensures that go test's flags are parsed separately using the standard flag package.
 
-**Example**: You want to parse go test flags that are otherwise ignore by `pflag.Parse()`
+**Example**: You want to parse go test flags that are otherwise ignore by `gpflag.Parse()`
 
 ```go
 package main
@@ -349,7 +349,7 @@ import (
 	goflag "flag"
     "os"
 
-	flag "github.com/spf13/pflag"
+	flag "github.com/naja-go/gpflag"
 )
 
 var ip = flag.Int("flagname", 1234, "help message for flagname")
@@ -363,8 +363,8 @@ func main() {
 
 ## More info
 
-You can see the full reference documentation of the pflag package
+You can see the full reference documentation of the gpflag package
 at [pkg.go.dev][2], or through go's standard documentation system by
 cloning the repository and running `go doc -http` in it.
 
-[2]: https://pkg.go.dev/github.com/spf13/pflag
+[2]: https://pkg.go.dev/github.com/naja-go/gpflag

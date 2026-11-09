@@ -1,4 +1,4 @@
-package pflag
+package gpflag
 
 // -- func Value
 type funcValue func(string) error

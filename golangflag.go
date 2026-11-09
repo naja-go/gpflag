@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package pflag
+package gpflag
 
 import (
 	goflag "flag"
@@ -20,7 +20,7 @@ func isGotestShorthandFlag(flag string) bool {
 	return strings.HasPrefix(flag, "test.")
 }
 
-// flagValueWrapper implements pflag.Value around a flag.Value.  The main
+// flagValueWrapper implements gpflag.Value around a flag.Value.  The main
 // difference here is the addition of the Type method that returns a string
 // name of the type.  As this is generally unknown, we approximate that with
 // reflection.
@@ -37,7 +37,7 @@ type goBoolFlag interface {
 }
 
 func wrapFlagValue(v goflag.Value) Value {
-	// If the flag.Value happens to also be a pflag.Value, just use it directly.
+	// If the flag.Value happens to also be a gpflag.Value, just use it directly.
 	if pv, ok := v.(Value); ok {
 		return pv
 	}
@@ -67,11 +67,11 @@ func (v *flagValueWrapper) Type() string {
 	return v.flagType
 }
 
-// PFlagFromGoFlag will return a *pflag.Flag given a *flag.Flag
+// PFlagFromGoFlag will return a *gpflag.Flag given a *flag.Flag
 // If the *flag.Flag.Name was a single character (ex: `v`) it will be accessiblei
 // with both `-v` and `--v` in flags. If the golang flag was more than a single
 // character (ex: `verbose`) it will only be accessible via `--verbose`
-func PFlagFromGoFlag(goflag *goflag.Flag) *Flag { //nolint:revive // ignore "func name will be used as pflag.PFlagFromGoFlag by other packages, and that stutters"
+func PFlagFromGoFlag(goflag *goflag.Flag) *Flag {
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{
 		Name:  goflag.Name,
@@ -91,7 +91,7 @@ func PFlagFromGoFlag(goflag *goflag.Flag) *Flag { //nolint:revive // ignore "fun
 	return flag
 }
 
-// AddGoFlag will add the given *flag.Flag to the pflag.FlagSet
+// AddGoFlag will add the given *flag.Flag to the gpflag.FlagSet
 func (f *FlagSet) AddGoFlag(goflag *goflag.Flag) {
 	if f.Lookup(goflag.Name) != nil {
 		return
@@ -100,7 +100,7 @@ func (f *FlagSet) AddGoFlag(goflag *goflag.Flag) {
 	f.AddFlag(newflag)
 }
 
-// AddGoFlagSet will add the given *flag.FlagSet to the pflag.FlagSet
+// AddGoFlagSet will add the given *flag.FlagSet to the gpflag.FlagSet
 func (f *FlagSet) AddGoFlagSet(newSet *goflag.FlagSet) {
 	if newSet == nil {
 		return
@@ -147,7 +147,7 @@ func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
 }
 
 // ParseSkippedFlags explicitly Parses go test flags (i.e. the one starting with '-test.') with goflag.Parse(),
-// since by default those are skipped by pflag.Parse().
+// since by default those are skipped by gpflag.Parse().
 // Typical usage example: `ParseGoTestFlags(os.Args[1:], goflag.CommandLine)`
 func ParseSkippedFlags(osArgs []string, goFlagSet *goflag.FlagSet) error {
 	var skippedFlags []string

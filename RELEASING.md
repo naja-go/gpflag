@@ -1,10 +1,10 @@
-# Releasing pflag
+# Releasing gpflag
 
-This document describes how to create a new pflag release.
+This document describes how to create a new gpflag release.
 
 ## Method 1: GitHub UI (recommended by maintainers)
 
-1. Go to the [releases page](https://github.com/spf13/pflag/releases)
+1. Go to the [releases page](https://github.com/naja-go/gpflag/releases)
 2. Click **"Draft a new release"**
 3. Click **"Generate release notes"** — this shows the merged PRs since the last tag, which helps determine the next version (minor vs patch)
 4. Choose the tag version (e.g., `v1.0.8`) — the tag will be created when the release is published
@@ -28,4 +28,4 @@ gh release create v1.0.8 --generate-notes
 
 ## Notes
 
-pflag follows [Semantic Versioning](https://semver.org/). Check the [releases page](https://github.com/spf13/pflag/releases) for the latest tag.
+gpflag follows [Semantic Versioning](https://semver.org/). Check the [releases page](https://github.com/naja-go/gpflag/releases) for the latest tag.
