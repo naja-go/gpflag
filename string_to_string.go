@@ -3,9 +3,10 @@ package gpflag
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -38,18 +39,18 @@ func (s *stringToStringValue) Set(val string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := r.Read(); err != io.EOF {
+		if _, err := r.Read(); !errors.Is(err, io.EOF) {
 			return fmt.Errorf("must be a single CSV record; quote fields containing newlines")
 		}
 	}
 
 	out := make(map[string]string, len(ss))
 	for _, pair := range ss {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) != 2 {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
 			return fmt.Errorf("%s must be formatted as key=value", pair)
 		}
-		out[kv[0]] = kv[1]
+		out[key] = value
 	}
 
 	// clear out any default flag values
@@ -78,7 +79,7 @@ func (s *stringToStringValue) String() string {
 	for k := range *s.value {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	records := make([]string, 0, len(*s.value)>>1)
 	for _, k := range keys {

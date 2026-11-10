@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.12", "1.21", "1.22", "1.23", "oldstable", "stable"]
+        go: ["1.27"]
 
     steps:
       - name: Checkout repository
@@ -35,7 +35,6 @@ jobs:
         run: go test -race -v ./...
 
       - name: Test native 32-bit integer ranges
-        if: matrix.go == 'stable'
         run: GOARCH=386 CGO_ENABLED=0 go test -v -run '^TestNativeIntegerFlagRange$' .
 
   lint:
@@ -50,9 +49,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
-          go-version: "stable"
+          go-version: "1.27"
 
       - name: Lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
-          version: latest
+          version: v2.15.0

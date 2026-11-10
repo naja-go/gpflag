@@ -5,7 +5,7 @@
 package gpflag
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 )
 
@@ -18,7 +18,7 @@ func ResetForTesting(usage func()) {
 	CommandLine = &FlagSet{
 		name:          os.Args[0],
 		errorHandling: ContinueOnError,
-		output:        ioutil.Discard,
+		output:        io.Discard,
 	}
 	Usage = usage
 }

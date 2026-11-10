@@ -1,6 +1,7 @@
 package gpflag
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -28,7 +29,7 @@ func (s *ipSliceValue) Set(val string) error {
 
 	// read flag arguments with CSV parser
 	ipStrSlice, err := readAsCSV(rmQuote.Replace(val))
-	if err != nil && err != io.EOF { //nolint:errorlint // not using errors.Is for compatibility with go1.12
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -112,7 +113,7 @@ func (s *ipSliceValue) GetSlice() []string {
 	return out
 }
 
-func ipSliceConv(val string) (interface{}, error) {
+func ipSliceConv(val string) (any, error) {
 	val = strings.Trim(val, "[]")
 	// Empty string would cause a slice with one (empty) entry
 	if len(val) == 0 {

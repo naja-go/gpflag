@@ -19,6 +19,8 @@ which can be found in the LICENSE file.
 
 ## Installation
 
+Requires **Go 1.27 or newer**.
+
 gpflag is available using the standard `go get` command.
 
 Install by running:

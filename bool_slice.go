@@ -1,6 +1,7 @@
 package gpflag
 
 import (
+	"errors"
 	"io"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ func (s *boolSliceValue) Set(val string) error {
 
 	// read flag arguments with CSV parser
 	boolStrSlice, err := readAsCSV(rmQuote.Replace(val))
-	if err != nil && err != io.EOF { //nolint:errorlint // not using errors.Is for compatibility with go1.12
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -107,7 +108,7 @@ func (s *boolSliceValue) GetSlice() []string {
 	return out
 }
 
-func boolSliceConv(val string) (interface{}, error) {
+func boolSliceConv(val string) (any, error) {
 	val = strings.Trim(val, "[]")
 	// Empty string would cause a slice with one (empty) entry
 	if len(val) == 0 {

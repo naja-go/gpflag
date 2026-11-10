@@ -8,11 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -114,7 +113,7 @@ func TestEverything(t *testing.T) {
 	// Now test they're visited in sort order.
 	var flagNames []string
 	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
-	if !sort.StringsAreSorted(flagNames) {
+	if !slices.IsSorted(flagNames) {
 		t.Errorf("flag names not sorted: %v", flagNames)
 	}
 }
@@ -675,7 +674,7 @@ func TestShorthand(t *testing.T) {
 		"--",
 		notaflag,
 	}
-	f.SetOutput(ioutil.Discard)
+	f.SetOutput(io.Discard)
 	if err := f.Parse(args); err != nil {
 		t.Error("expected no error, got ", err)
 	}
@@ -740,7 +739,7 @@ func TestShorthandLookup(t *testing.T) {
 	args := []string{
 		"-ab",
 	}
-	f.SetOutput(ioutil.Discard)
+	f.SetOutput(io.Discard)
 	if err := f.Parse(args); err != nil {
 		t.Error("expected no error, got ", err)
 	}
@@ -795,7 +794,7 @@ func TestInvalidArgumentMessages(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.flag, func(t *testing.T) {
 			f := NewFlagSet("test", ContinueOnError)
-			f.SetOutput(ioutil.Discard)
+			f.SetOutput(io.Discard)
 			tc.register(f)
 			err := f.Parse([]string{"--" + tc.flag + "=" + tc.raw})
 			if err == nil {
@@ -1211,7 +1210,7 @@ func TestHelp(t *testing.T) {
 	if err == nil {
 		t.Fatal("error expected")
 	}
-	if err != ErrHelp { //nolint:errorlint // not using errors.Is for compatibility with go1.12
+	if err != ErrHelp { //nolint:errorlint // Parse must return the exact ErrHelp sentinel.
 		t.Fatal("expected ErrHelp; got ", err)
 	}
 	if !helpCalled {
@@ -1258,7 +1257,7 @@ func TestTermination(t *testing.T) {
 		arg1,
 		arg2,
 	}
-	f.SetOutput(ioutil.Discard)
+	f.SetOutput(io.Discard)
 	if err := f.Parse(args); err != nil {
 		t.Fatal("expected no error; got ", err)
 	}

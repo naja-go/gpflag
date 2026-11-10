@@ -31,7 +31,7 @@ func (i *ipValue) Type() string {
 	return "ip"
 }
 
-func ipConv(sval string) (interface{}, error) {
+func ipConv(sval string) (any, error) {
 	if sval == "" || sval == "<nil>" {
 		return net.IP(nil), nil
 	}

@@ -25,12 +25,12 @@ func (s *stringToIntValue) Set(val string) error {
 	ss := strings.Split(val, ",")
 	out := make(map[string]int, len(ss))
 	for _, pair := range ss {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) != 2 {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
 			return fmt.Errorf("%s must be formatted as key=value", pair)
 		}
 		var err error
-		out[kv[0]], err = strconv.Atoi(kv[1])
+		out[key], err = strconv.Atoi(value)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func (s *stringToIntValue) String() string {
 	return "[" + buf.String() + "]"
 }
 
-func stringToIntConv(val string) (interface{}, error) {
+func stringToIntConv(val string) (any, error) {
 	val = strings.Trim(val, "[]")
 	// An empty string would cause an empty map
 	if len(val) == 0 {
@@ -74,12 +74,12 @@ func stringToIntConv(val string) (interface{}, error) {
 	ss := strings.Split(val, ",")
 	out := make(map[string]int, len(ss))
 	for _, pair := range ss {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) != 2 {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
 			return nil, fmt.Errorf("%s must be formatted as key=value", pair)
 		}
 		var err error
-		out[kv[0]], err = strconv.Atoi(kv[1])
+		out[key], err = strconv.Atoi(value)
 		if err != nil {
 			return nil, err
 		}

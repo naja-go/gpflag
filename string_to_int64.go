@@ -25,12 +25,12 @@ func (s *stringToInt64Value) Set(val string) error {
 	ss := strings.Split(val, ",")
 	out := make(map[string]int64, len(ss))
 	for _, pair := range ss {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) != 2 {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
 			return fmt.Errorf("%s must be formatted as key=value", pair)
 		}
 		var err error
-		out[kv[0]], err = strconv.ParseInt(kv[1], 10, 64)
+		out[key], err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ func (s *stringToInt64Value) String() string {
 	return "[" + buf.String() + "]"
 }
 
-func stringToInt64Conv(val string) (interface{}, error) {
+func stringToInt64Conv(val string) (any, error) {
 	val = strings.Trim(val, "[]")
 	// An empty string would cause an empty map
 	if len(val) == 0 {
@@ -74,12 +74,12 @@ func stringToInt64Conv(val string) (interface{}, error) {
 	ss := strings.Split(val, ",")
 	out := make(map[string]int64, len(ss))
 	for _, pair := range ss {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) != 2 {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
 			return nil, fmt.Errorf("%s must be formatted as key=value", pair)
 		}
 		var err error
-		out[kv[0]], err = strconv.ParseInt(kv[1], 10, 64)
+		out[key], err = strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return nil, err
 		}

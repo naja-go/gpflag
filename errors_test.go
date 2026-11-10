@@ -51,8 +51,11 @@ func TestInvalidValueError(t *testing.T) {
 	if err.GetValue() != "foo" {
 		t.Errorf("Expected GetValue to return %q, got %q", "foo", err.GetValue())
 	}
-	if actual := err.Unwrap(); actual != expectedCause { //nolint:errorlint // not using errors.Is for compatibility with go1.12
-		t.Errorf("Expected Unwrwap to return %q, got %q", expectedCause, actual)
+	if actual := err.Unwrap(); actual != expectedCause { //nolint:errorlint // Verify that Unwrap returns the exact cause, not a wrapper.
+		t.Errorf("Expected Unwrap to return %q, got %q", expectedCause, actual)
+	}
+	if !errors.Is(err, expectedCause) {
+		t.Errorf("Expected errors.Is to match %q, got %q", expectedCause, err)
 	}
 }
 

@@ -118,7 +118,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -246,13 +246,13 @@ type SliceValue interface {
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
 func sortFlags(flags map[NormalizedName]*Flag) []*Flag {
-	list := make(sort.StringSlice, len(flags))
+	list := make([]string, len(flags))
 	i := 0
 	for k := range flags {
 		list[i] = string(k)
 		i++
 	}
-	list.Sort()
+	slices.Sort(list)
 	result := make([]*Flag, len(list))
 	for i, name := range list {
 		result[i] = flags[NormalizedName(name)]
@@ -454,7 +454,7 @@ func (f *FlagSet) lookup(name NormalizedName) *Flag {
 // convFunc may be nil, in which case the raw flag value is returned directly and no immutability is enforced. This is
 // particularly useful when users need to access the pointer of the underlying flag value for manipulation (e.g.
 // resetting flag values in tests).
-func (f *FlagSet) getFlagType(name string, ftype string, convFunc func(sval string) (interface{}, error)) (interface{}, error) {
+func (f *FlagSet) getFlagType(name string, ftype string, convFunc func(sval string) (any, error)) (any, error) {
 	flag := f.Lookup(name)
 	if flag == nil {
 		err := &NotExistError{name: name, messageType: flagNotExistMessage}
@@ -1071,8 +1071,7 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 		return
 	}
 
-	split := strings.SplitN(name, "=", 2)
-	name = split[0]
+	name, value, hasValue := strings.Cut(name, "=")
 	flag, exists := f.formal[f.normalizeFlagName(name)]
 	unknownFlagsHandling := f.getUnknownFlagsHandling()
 
@@ -1084,7 +1083,7 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 		case unknownFlagsHandling == IgnoreUnknownFlag:
 			// --unknown=unknownval arg ...
 			// we do not want to lose arg in this case
-			if len(split) >= 2 {
+			if hasValue {
 				return a, nil
 			}
 
@@ -1099,18 +1098,17 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 		}
 	}
 
-	var value string
-	if len(split) == 2 {
-		// '--flag=arg'
-		value = split[1]
-	} else if flag.NoOptDefVal != "" {
+	switch {
+	case hasValue:
+		// '--flag=arg': value was provided after '='.
+	case flag.NoOptDefVal != "":
 		// '--flag' (arg was optional)
 		value = flag.NoOptDefVal
-	} else if len(a) > 0 {
+	case len(a) > 0:
 		// '--flag arg'
 		value = a[0]
 		a = a[1:]
-	} else {
+	default:
 		// '--flag' (arg was required)
 		err = f.fail(&ValueRequiredError{
 			flag:          flag,
@@ -1315,7 +1313,7 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			if err == ErrHelp { //nolint:errorlint // not using errors.Is for compatibility with go1.12
+			if errors.Is(err, ErrHelp) {
 				os.Exit(0)
 			}
 			_, _ = fmt.Fprintln(f.Output(), err)
@@ -1348,7 +1346,7 @@ func (f *FlagSet) ParseAll(arguments []string, fn func(flag *Flag, value string)
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			if err == ErrHelp { //nolint:errorlint // not using errors.Is for compatibility with go1.12
+			if errors.Is(err, ErrHelp) {
 				os.Exit(0)
 			}
 			_, _ = fmt.Fprintln(f.Output(), err)
