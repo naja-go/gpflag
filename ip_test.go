@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -9,7 +15,7 @@ import (
 
 func setUpIP(ip *net.IP) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPVar(ip, "address", net.ParseIP("0.0.0.0"), "IP Address")
+	f.NewVar(ip, "address", net.ParseIP("0.0.0.0"), "IP Address")
 	return f
 }
 
@@ -51,7 +57,7 @@ func TestIP(t *testing.T) {
 			t.Errorf("expected failure")
 			continue
 		} else if tc.success {
-			ip, err := f.GetIP("address")
+			ip, err := f.TryGet[net.IP]("address")
 			if err != nil {
 				t.Errorf("Got error trying to fetch the IP flag: %v", err)
 			}
@@ -65,9 +71,9 @@ func TestIP(t *testing.T) {
 func TestIPNilDefault(t *testing.T) {
 	var addr net.IP
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPVar(&addr, "address", nil, "IP Address")
+	f.NewVar(&addr, "address", net.IP(nil), "IP Address")
 
-	ip, err := f.GetIP("address")
+	ip, err := f.TryGet[net.IP]("address")
 	if err != nil {
 		t.Fatalf("expected nil default IP to round-trip without error, got %v", err)
 	}

@@ -1,13 +1,21 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
 	"os"
 	"testing"
+
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
-func setUpCount(c *int) *FlagSet {
+func setUpCount(c *types.Count) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.CountVarP(c, "verbose", "v", "a counter")
+	f.NewVarP(c, "verbose", "v", 0, "a counter")
 	return f
 }
 
@@ -31,7 +39,7 @@ func TestCount(t *testing.T) {
 	devnull, _ := os.Open(os.DevNull)
 	os.Stderr = devnull
 	for i := range testCases {
-		var count int
+		var count types.Count
 		f := setUpCount(&count)
 
 		tc := &testCases[i]
@@ -44,11 +52,11 @@ func TestCount(t *testing.T) {
 			t.Errorf("expected failure, got success")
 			continue
 		} else if tc.success {
-			c, err := f.GetCount("verbose")
+			c, err := f.TryGet[types.Count]("verbose")
 			if err != nil {
 				t.Errorf("Got error trying to fetch the counter flag")
 			}
-			if c != tc.expected {
+			if c.Int() != tc.expected {
 				t.Errorf("expected %d, got %d", tc.expected, c)
 			}
 		}
@@ -58,7 +66,7 @@ func TestCount(t *testing.T) {
 func TestCountPreservesValueOnError(t *testing.T) {
 	for _, input := range []string{"invalid", "999999999999999999999999999999999999"} {
 		t.Run(input, func(t *testing.T) {
-			var count int
+			var count types.Count
 			f := setUpCount(&count)
 			if err := f.Parse([]string{"-vv"}); err != nil {
 				t.Fatal(err)

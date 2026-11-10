@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpISFlagSet(isp *[]int) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IntSliceVar(isp, "is", []int{}, "Command separated list!")
+	f.NewVar(isp, "is", []int{}, "Command separated list!")
 	return f
 }
 
 func setUpISFlagSetWithDefault(isp *[]int) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IntSliceVar(isp, "is", []int{0, 1}, "Command separated list!")
+	f.NewVar(isp, "is", []int{0, 1}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyIS(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getIS, err := f.GetIntSlice("is")
+	getIS, err := f.TryGet[[]int]("is")
 	if err != nil {
 		t.Fatal("got an error from GetIntSlice():", err)
 	}
@@ -59,7 +60,7 @@ func TestIS(t *testing.T) {
 			t.Fatalf("expected is[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getIS, err := f.GetIntSlice("is")
+	getIS, err := f.TryGet[[]int]("is")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestISDefault(t *testing.T) {
 		}
 	}
 
-	getIS, err := f.GetIntSlice("is")
+	getIS, err := f.TryGet[[]int]("is")
 	if err != nil {
 		t.Fatal("got an error from GetIntSlice():", err)
 	}
@@ -129,7 +130,7 @@ func TestISWithDefault(t *testing.T) {
 		}
 	}
 
-	getIS, err := f.GetIntSlice("is")
+	getIS, err := f.TryGet[[]int]("is")
 	if err != nil {
 		t.Fatal("got an error from GetIntSlice():", err)
 	}

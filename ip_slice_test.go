@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -9,17 +15,16 @@ import (
 
 func setUpIPSFlagSet(ipsp *[]net.IP) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPSliceVar(ipsp, "ips", []net.IP{}, "Command separated list!")
+	f.NewVar(ipsp, "ips", []net.IP{}, "Command separated list!")
 	return f
 }
 
 func setUpIPSFlagSetWithDefault(ipsp *[]net.IP) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPSliceVar(ipsp, "ips",
-		[]net.IP{
-			net.ParseIP("192.168.1.1"),
-			net.ParseIP("0:0:0:0:0:0:0:1"),
-		},
+	f.NewVar(ipsp, "ips", []net.IP{
+		net.ParseIP("192.168.1.1"),
+		net.ParseIP("0:0:0:0:0:0:0:1"),
+	},
 		"Command separated list!")
 	return f
 }
@@ -32,7 +37,7 @@ func TestEmptyIP(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getIPS, err := f.GetIPSlice("ips")
+	getIPS, err := f.TryGet[[]net.IP]("ips")
 	if err != nil {
 		t.Fatal("got an error from GetIPSlice():", err)
 	}
@@ -77,7 +82,7 @@ func TestIPSDefault(t *testing.T) {
 		}
 	}
 
-	getIPS, err := f.GetIPSlice("ips")
+	getIPS, err := f.TryGet[[]net.IP]("ips")
 	if err != nil {
 		t.Fatal("got an error from GetIPSlice")
 	}
@@ -108,7 +113,7 @@ func TestIPSWithDefault(t *testing.T) {
 		}
 	}
 
-	getIPS, err := f.GetIPSlice("ips")
+	getIPS, err := f.TryGet[[]net.IP]("ips")
 	if err != nil {
 		t.Fatal("got an error from GetIPSlice")
 	}
@@ -248,7 +253,8 @@ func TestIPSliceValueRejectsInvalidIPs(t *testing.T) {
 	for _, operation := range []string{"Append", "Replace"} {
 		t.Run(operation, func(t *testing.T) {
 			var ips []net.IP
-			value := newIPSliceValue([]net.IP{net.ParseIP("192.0.2.1")}, &ips)
+			f := NewFlagSet("test", ContinueOnError)
+			value := f.NewVar(&ips, "ips", []net.IP{net.ParseIP("192.0.2.1")}, "").Value.(SliceValue)
 			var err error
 			if operation == "Append" {
 				err = value.Append("not-an-ip")
@@ -267,7 +273,8 @@ func TestIPSliceValueRejectsInvalidIPs(t *testing.T) {
 
 func TestIPSliceValueAppendAndReplace(t *testing.T) {
 	var ips []net.IP
-	value := newIPSliceValue(nil, &ips)
+	f := NewFlagSet("test", ContinueOnError)
+	value := f.NewVar(&ips, "ips", nil, "").Value.(SliceValue)
 	if err := value.Append(" 192.0.2.1 "); err != nil {
 		t.Fatal(err)
 	}

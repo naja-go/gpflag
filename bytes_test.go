@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -5,12 +11,14 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
-func setUpBytesHex(bytesHex *[]byte) *FlagSet {
+func setUpBytesHex(bytesHex *types.Hex) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BytesHexVar(bytesHex, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
-	f.BytesHexVarP(bytesHex, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
+	f.NewVar(bytesHex, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
+	f.NewVarP(bytesHex, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in HEX")
 	return f
 }
 
@@ -37,7 +45,7 @@ func TestBytesHex(t *testing.T) {
 	os.Stderr = devnull
 
 	for i := range testCases {
-		var bytesHex []byte
+		var bytesHex types.Hex
 		f := setUpBytesHex(&bytesHex)
 
 		tc := &testCases[i]
@@ -60,7 +68,7 @@ func TestBytesHex(t *testing.T) {
 				t.Errorf("expected failure while processing %q", tc.input)
 				continue
 			} else if tc.success {
-				bytesHex, err := f.GetBytesHex("bytes")
+				bytesHex, err := f.TryGet[types.Hex]("bytes")
 				if err != nil {
 					t.Errorf("Got error trying to fetch the 'bytes' flag: %v", err)
 				}
@@ -72,10 +80,10 @@ func TestBytesHex(t *testing.T) {
 	}
 }
 
-func setUpBytesBase64(bytesBase64 *[]byte) *FlagSet {
+func setUpBytesBase64(bytesBase64 *types.Base64) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BytesBase64Var(bytesBase64, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
-	f.BytesBase64VarP(bytesBase64, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
+	f.NewVar(bytesBase64, "bytes", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
+	f.NewVarP(bytesBase64, "bytes2", "B", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "Some bytes in Base64")
 	return f
 }
 
@@ -98,7 +106,7 @@ func TestBytesBase64(t *testing.T) {
 	os.Stderr = devnull
 
 	for i := range testCases {
-		var bytesBase64 []byte
+		var bytesBase64 types.Base64
 		f := setUpBytesBase64(&bytesBase64)
 
 		tc := &testCases[i]
@@ -121,7 +129,7 @@ func TestBytesBase64(t *testing.T) {
 				t.Errorf("expected failure while processing %q", tc.input)
 				continue
 			} else if tc.success {
-				bytesBase64, err := f.GetBytesBase64("bytes")
+				bytesBase64, err := f.TryGet[types.Base64]("bytes")
 				if err != nil {
 					t.Errorf("Got error trying to fetch the 'bytes' flag: %v", err)
 				}

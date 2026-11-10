@@ -1,8 +1,16 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
 func TestBoolFunc(t *testing.T) {
@@ -13,7 +21,7 @@ func TestBoolFunc(t *testing.T) {
 	}
 
 	fset := NewFlagSet("test", ContinueOnError)
-	fset.BoolFunc("func", "Callback function", fn)
+	fset.New("func", types.BoolFunc(fn), "Callback function")
 
 	err := fset.Parse([]string{"--func", "--func=1", "--func=false"})
 	if err != nil {
@@ -33,7 +41,7 @@ func TestBoolFuncP(t *testing.T) {
 	}
 
 	fset := NewFlagSet("test", ContinueOnError)
-	fset.BoolFuncP("bfunc", "b", "Callback function", fn)
+	fset.NewP("bfunc", "b", types.BoolFunc(fn), "Callback function")
 
 	err := fset.Parse([]string{"--bfunc", "--bfunc=0", "--bfunc=false", "-b", "-b=0"})
 	if err != nil {
@@ -47,10 +55,12 @@ func TestBoolFuncP(t *testing.T) {
 
 func TestBoolFuncUsage(t *testing.T) {
 	t.Run("regular func flag", func(t *testing.T) {
+		fn := func(string) error { return nil }
+
 		// regular boolfunc flag:
 		// expect to see '--flag1' followed by the usageMessage, and no mention of a default value
 		fset := NewFlagSet("unittest", ContinueOnError)
-		fset.BoolFunc("flag1", "usage message", func(string) error { return nil })
+		fset.New("flag1", types.BoolFunc(fn), "usage message")
 		usage := fset.FlagUsagesWrapped(80)
 
 		usage = strings.TrimSpace(usage)
@@ -61,10 +71,11 @@ func TestBoolFuncUsage(t *testing.T) {
 	})
 
 	t.Run("func flag with placeholder name", func(t *testing.T) {
+		fn := func(string) error { return nil }
 		// func flag, with a placeholder name:
 		// if usageMesage contains a placeholder, expect '--flag2 {placeholder}'; still expect no mention of a default value
 		fset := NewFlagSet("unittest", ContinueOnError)
-		fset.BoolFunc("flag2", "usage message with `name` placeholder", func(string) error { return nil })
+		fset.New("flag2", types.BoolFunc(fn), "usage message with `name` placeholder")
 		usage := fset.FlagUsagesWrapped(80)
 
 		usage = strings.TrimSpace(usage)

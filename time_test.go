@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -5,11 +11,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
-func setUpTimeVar(t *time.Time, formats []string) *FlagSet {
+func setUpTimeVar(t *types.Time, formats []string) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.TimeVar(t, "time", *t, formats, "Time")
+	f.NewVar(t, "time", types.Time{Time: t.Time, Formats: formats}, "Time")
 	return f
 }
 
@@ -36,7 +44,7 @@ func TestTime(t *testing.T) {
 	}
 
 	for i := range testCases {
-		var timeVar time.Time
+		var timeVar types.Time
 		formats := []string{time.RFC3339Nano, time.RFC1123Z}
 		f := setUpTimeVar(&timeVar, formats)
 
@@ -51,7 +59,7 @@ func TestTime(t *testing.T) {
 			t.Errorf("expected failure")
 			continue
 		} else if tc.success {
-			timeResult, err := f.GetTime("time")
+			timeResult, err := f.TryGet[types.Time]("time")
 			if err != nil {
 				t.Errorf("Got error trying to fetch the Time flag: %v", err)
 			}
@@ -65,7 +73,7 @@ func TestTime(t *testing.T) {
 func usageForTimeFlagSet(t *testing.T, timeVar time.Time) string {
 	t.Helper()
 	formats := []string{time.RFC3339Nano, time.RFC1123Z}
-	f := setUpTimeVar(&timeVar, formats)
+	f := setUpTimeVar(&types.Time{Time: timeVar}, formats)
 	if err := f.Parse([]string{}); err != nil {
 		t.Fatalf("expected success, got %q", err)
 	}

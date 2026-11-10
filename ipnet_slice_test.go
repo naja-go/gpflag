@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -18,17 +24,16 @@ func equalCIDR(c1 net.IPNet, c2 net.IPNet) bool {
 
 func setUpIPNetFlagSet(ipsp *[]net.IPNet) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPNetSliceVar(ipsp, "cidrs", []net.IPNet{}, "Command separated list!")
+	f.NewVar(ipsp, "cidrs", []net.IPNet{}, "Command separated list!")
 	return f
 }
 
 func setUpIPNetFlagSetWithDefault(ipsp *[]net.IPNet) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.IPNetSliceVar(ipsp, "cidrs",
-		[]net.IPNet{
-			getCIDR(net.ParseCIDR("192.168.1.1/16")),
-			getCIDR(net.ParseCIDR("fd00::/64")),
-		},
+	f.NewVar(ipsp, "cidrs", []net.IPNet{
+		getCIDR(net.ParseCIDR("192.168.1.1/16")),
+		getCIDR(net.ParseCIDR("fd00::/64")),
+	},
 		"Command separated list!")
 	return f
 }
@@ -41,7 +46,7 @@ func TestEmptyIPNet(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	getIPNet, err := f.TryGet[[]net.IPNet]("cidrs")
 	if err != nil {
 		t.Fatal("got an error from GetIPNetSlice():", err)
 	}
@@ -86,7 +91,7 @@ func TestIPNetDefault(t *testing.T) {
 		}
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	getIPNet, err := f.TryGet[[]net.IPNet]("cidrs")
 	if err != nil {
 		t.Fatal("got an error from GetIPNetSlice")
 	}
@@ -117,7 +122,7 @@ func TestIPNetWithDefault(t *testing.T) {
 		}
 	}
 
-	getIPNet, err := f.GetIPNetSlice("cidrs")
+	getIPNet, err := f.TryGet[[]net.IPNet]("cidrs")
 	if err != nil {
 		t.Fatal("got an error from GetIPNetSlice")
 	}

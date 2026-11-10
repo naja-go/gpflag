@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,29 +8,30 @@ package gpflag
 import (
 	"fmt"
 	"testing"
+
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
-func setUpSAFlagSet(sap *[]string) *FlagSet {
+func setUpSAFlagSet(sap *types.StringArray) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringArrayVar(sap, "sa", []string{}, "Command separated list!")
+	f.NewVar(sap, "sa", []string{}, "Command separated list!")
 	return f
 }
 
-func setUpSAFlagSetWithDefault(sap *[]string) *FlagSet {
+func setUpSAFlagSetWithDefault(sap *types.StringArray) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringArrayVar(sap, "sa", []string{"default", "values"}, "Command separated list!")
+	f.NewVar(sap, "sa", []string{"default", "values"}, "Command separated list!")
 	return f
 }
 
 func TestEmptySA(t *testing.T) {
-	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f := setUpSAFlagSet(&types.StringArray{})
 	err := f.Parse([]string{})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	getSA, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("got an error from GetStringArray():", err)
 	}
@@ -39,24 +41,23 @@ func TestEmptySA(t *testing.T) {
 }
 
 func TestEmptySAValue(t *testing.T) {
-	var sa []string
-	f := setUpSAFlagSet(&sa)
+	f := setUpSAFlagSet(&types.StringArray{})
 	err := f.Parse([]string{"--sa="})
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	getSA, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
-		t.Fatal("got an error from GetStringArray():", err)
+		t.Fatal("got an error from Get:", err)
 	}
-	if len(getSA) != 0 {
-		t.Fatalf("got sa %v with len=%d but expected length=0", getSA, len(getSA))
+	if len(getSA) != 1 || getSA[0] != "" {
+		t.Fatalf("an explicit empty occurrence must retain one empty string: %#v", getSA)
 	}
 }
 
 func TestSADefault(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSetWithDefault(&sa)
 
 	vals := []string{"default", "values"}
@@ -71,7 +72,7 @@ func TestSADefault(t *testing.T) {
 		}
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	getSA, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("got an error from GetStringArray():", err)
 	}
@@ -83,7 +84,7 @@ func TestSADefault(t *testing.T) {
 }
 
 func TestSAWithDefault(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSetWithDefault(&sa)
 
 	val := "one"
@@ -101,7 +102,7 @@ func TestSAWithDefault(t *testing.T) {
 		t.Fatalf("expected value to be %s but got: %s", sa[0], val)
 	}
 
-	getSA, err := f.GetStringArray("sa")
+	getSA, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("got an error from GetStringArray():", err)
 	}
@@ -116,7 +117,7 @@ func TestSAWithDefault(t *testing.T) {
 }
 
 func TestSACalledTwice(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSet(&sa)
 
 	in := []string{"one", "two"}
@@ -138,7 +139,7 @@ func TestSACalledTwice(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	values, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
@@ -154,7 +155,7 @@ func TestSACalledTwice(t *testing.T) {
 }
 
 func TestSAWithSpecialChar(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSet(&sa)
 
 	in := []string{"one,two", `"three"`, `"four,five",six`, "seven eight"}
@@ -178,7 +179,7 @@ func TestSAWithSpecialChar(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	values, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
@@ -194,7 +195,7 @@ func TestSAWithSpecialChar(t *testing.T) {
 }
 
 func TestSAAsSliceValue(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSet(&sa)
 
 	in := []string{"1ns", "2ns"}
@@ -217,7 +218,7 @@ func TestSAAsSliceValue(t *testing.T) {
 }
 
 func TestSAWithSquareBrackets(t *testing.T) {
-	var sa []string
+	var sa types.StringArray
 	f := setUpSAFlagSet(&sa)
 
 	in := []string{"][]-[", "[a-z]", "[a-z]+"}
@@ -240,7 +241,7 @@ func TestSAWithSquareBrackets(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringArray("sa")
+	values, err := f.TryGet[types.StringArray]("sa")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}

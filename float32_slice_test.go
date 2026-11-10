@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpF32SFlagSet(f32sp *[]float32) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float32SliceVar(f32sp, "f32s", []float32{}, "Command separated list!")
+	f.NewVar(f32sp, "f32s", []float32{}, "Command separated list!")
 	return f
 }
 
 func setUpF32SFlagSetWithDefault(f32sp *[]float32) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float32SliceVar(f32sp, "f32s", []float32{0.0, 1.0}, "Command separated list!")
+	f.NewVar(f32sp, "f32s", []float32{0.0, 1.0}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyF32S(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	getF32S, err := f.TryGet[[]float32]("f32s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat32Slice():", err)
 	}
@@ -61,7 +62,7 @@ func TestF32S(t *testing.T) {
 			t.Fatalf("expected f32s[%d] to be %s but got: %f", i, vals[i], v)
 		}
 	}
-	getF32S, err := f.GetFloat32Slice("f32s")
+	getF32S, err := f.TryGet[[]float32]("f32s")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -100,7 +101,7 @@ func TestF32SDefault(t *testing.T) {
 		}
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	getF32S, err := f.TryGet[[]float32]("f32s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat32Slice():", err)
 	}
@@ -139,7 +140,7 @@ func TestF32SWithDefault(t *testing.T) {
 		}
 	}
 
-	getF32S, err := f.GetFloat32Slice("f32s")
+	getF32S, err := f.TryGet[[]float32]("f32s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat32Slice():", err)
 	}

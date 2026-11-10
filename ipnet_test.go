@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -10,7 +16,7 @@ import (
 func setUpIPNet(ip *net.IPNet) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
 	_, def, _ := net.ParseCIDR("0.0.0.0/0")
-	f.IPNetVar(ip, "address", *def, "IP Address")
+	f.NewVar(ip, "address", *def, "IP Address")
 	return f
 }
 
@@ -58,7 +64,7 @@ func TestIPNet(t *testing.T) {
 			t.Errorf("expected failure")
 			continue
 		} else if tc.success {
-			ip, err := f.GetIPNet("address")
+			ip, err := f.TryGet[net.IPNet]("address")
 			if err != nil {
 				t.Errorf("Got error trying to fetch the IP flag: %v", err)
 			}

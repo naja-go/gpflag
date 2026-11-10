@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -10,7 +16,7 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 	minInt := -maxInt - 1
 	t.Run("int", func(t *testing.T) {
 		f := NewFlagSet("int-range", ContinueOnError)
-		value := f.Int("value", 7, "")
+		value := f.New("value", 7, "")
 		for _, valid := range []int{minInt, maxInt} {
 			if err := f.Set("value", strconv.FormatInt(int64(valid), 10)); err != nil {
 				t.Fatalf("valid native int rejected: %v", err)
@@ -34,7 +40,7 @@ func TestNativeIntegerFlagRange(t *testing.T) {
 	t.Run("uint", func(t *testing.T) {
 		f := NewFlagSet("uint-range", ContinueOnError)
 		maxUint := ^uint(0)
-		value := f.Uint("value", 7, "")
+		value := f.New("value", uint(7), "")
 		if err := f.Set("value", strconv.FormatUint(uint64(maxUint), 10)); err != nil {
 			t.Fatalf("valid native uint rejected: %v", err)
 		}

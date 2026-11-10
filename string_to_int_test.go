@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of ths2i source code s2i governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpS2IFlagSet(s2ip *map[string]int) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToIntVar(s2ip, "s2i", map[string]int{}, "Command separated ls2it!")
+	f.NewVar(s2ip, "s2i", map[string]int{}, "Command separated ls2it!")
 	return f
 }
 
 func setUpS2IFlagSetWithDefault(s2ip *map[string]int) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToIntVar(s2ip, "s2i", map[string]int{"a": 1, "b": 2}, "Command separated ls2it!")
+	f.NewVar(s2ip, "s2i", map[string]int{"a": 1, "b": 2}, "Command separated ls2it!")
 	return f
 }
 
@@ -46,7 +47,7 @@ func TestEmptyS2I(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getS2I, err := f.GetStringToInt("s2i")
+	getS2I, err := f.TryGet[map[string]int]("s2i")
 	if err != nil {
 		t.Fatal("got an error from GetStringToInt():", err)
 	}
@@ -70,7 +71,7 @@ func TestS2I(t *testing.T) {
 			t.Fatalf("expected s2i[%s] to be %d but got: %d", k, vals[k], v)
 		}
 	}
-	getS2I, err := f.GetStringToInt("s2i")
+	getS2I, err := f.TryGet[map[string]int]("s2i")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -97,7 +98,7 @@ func TestS2IDefault(t *testing.T) {
 		}
 	}
 
-	getS2I, err := f.GetStringToInt("s2i")
+	getS2I, err := f.TryGet[map[string]int]("s2i")
 	if err != nil {
 		t.Fatal("got an error from GetStringToInt():", err)
 	}
@@ -124,7 +125,7 @@ func TestS2IWithDefault(t *testing.T) {
 		}
 	}
 
-	getS2I, err := f.GetStringToInt("s2i")
+	getS2I, err := f.TryGet[map[string]int]("s2i")
 	if err != nil {
 		t.Fatal("got an error from GetStringToInt():", err)
 	}

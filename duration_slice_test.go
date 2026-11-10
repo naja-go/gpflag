@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code ds governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpDSFlagSet(dsp *[]time.Duration) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.DurationSliceVar(dsp, "ds", []time.Duration{}, "Command separated list!")
+	f.NewVar(dsp, "ds", []time.Duration{}, "Command separated list!")
 	return f
 }
 
 func setUpDSFlagSetWithDefault(dsp *[]time.Duration) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.DurationSliceVar(dsp, "ds", []time.Duration{0, 1}, "Command separated list!")
+	f.NewVar(dsp, "ds", []time.Duration{0, 1}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyDS(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	getDS, err := f.TryGet[[]time.Duration]("ds")
 	if err != nil {
 		t.Fatal("got an error from GetDurationSlice():", err)
 	}
@@ -59,7 +60,7 @@ func TestDS(t *testing.T) {
 			t.Fatalf("expected ds[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getDS, err := f.GetDurationSlice("ds")
+	getDS, err := f.TryGet[[]time.Duration]("ds")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestDSDefault(t *testing.T) {
 		}
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	getDS, err := f.TryGet[[]time.Duration]("ds")
 	if err != nil {
 		t.Fatal("got an error from GetDurationSlice():", err)
 	}
@@ -129,7 +130,7 @@ func TestDSWithDefault(t *testing.T) {
 		}
 	}
 
-	getDS, err := f.GetDurationSlice("ds")
+	getDS, err := f.TryGet[[]time.Duration]("ds")
 	if err != nil {
 		t.Fatal("got an error from GetDurationSlice():", err)
 	}

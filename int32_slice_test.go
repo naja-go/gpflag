@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpI32SFlagSet(isp *[]int32) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Int32SliceVar(isp, "is", []int32{}, "Command separated list!")
+	f.NewVar(isp, "is", []int32{}, "Command separated list!")
 	return f
 }
 
 func setUpI32SFlagSetWithDefault(isp *[]int32) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Int32SliceVar(isp, "is", []int32{0, 1}, "Command separated list!")
+	f.NewVar(isp, "is", []int32{0, 1}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyI32S(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getI32S, err := f.GetInt32Slice("is")
+	getI32S, err := f.TryGet[[]int32]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt32Slice():", err)
 	}
@@ -60,7 +61,7 @@ func TestI32S(t *testing.T) {
 			t.Fatalf("expected is[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getI32S, err := f.GetInt32Slice("is")
+	getI32S, err := f.TryGet[[]int32]("is")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -97,7 +98,7 @@ func TestI32SDefault(t *testing.T) {
 		}
 	}
 
-	getI32S, err := f.GetInt32Slice("is")
+	getI32S, err := f.TryGet[[]int32]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt32Slice():", err)
 	}
@@ -134,7 +135,7 @@ func TestI32SWithDefault(t *testing.T) {
 		}
 	}
 
-	getI32S, err := f.GetInt32Slice("is")
+	getI32S, err := f.TryGet[[]int32]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt32Slice():", err)
 	}

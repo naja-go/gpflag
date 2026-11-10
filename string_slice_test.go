@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -12,13 +13,13 @@ import (
 
 func setUpSSFlagSet(ssp *[]string) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringSliceVar(ssp, "ss", []string{}, "Command separated list!")
+	f.NewVar(ssp, "ss", []string{}, "Command separated list!")
 	return f
 }
 
 func setUpSSFlagSetWithDefault(ssp *[]string) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringSliceVar(ssp, "ss", []string{"default", "values"}, "Command separated list!")
+	f.NewVar(ssp, "ss", []string{"default", "values"}, "Command separated list!")
 	return f
 }
 
@@ -30,7 +31,7 @@ func TestEmptySS(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	getSS, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("got an error from GetStringSlice():", err)
 	}
@@ -47,7 +48,7 @@ func TestEmptySSValue(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	getSS, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("got an error from GetStringSlice():", err)
 	}
@@ -72,7 +73,7 @@ func TestSS(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	getSS, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("got an error from GetStringSlice():", err)
 	}
@@ -99,7 +100,7 @@ func TestSSDefault(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	getSS, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("got an error from GetStringSlice():", err)
 	}
@@ -126,7 +127,7 @@ func TestSSWithDefault(t *testing.T) {
 		}
 	}
 
-	getSS, err := f.GetStringSlice("ss")
+	getSS, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("got an error from GetStringSlice():", err)
 	}
@@ -160,7 +161,7 @@ func TestSSCalledTwice(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	values, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
@@ -199,7 +200,7 @@ func TestSSWithComma(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	values, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}
@@ -237,7 +238,7 @@ func TestSSWithSquareBrackets(t *testing.T) {
 		}
 	}
 
-	values, err := f.GetStringSlice("ss")
+	values, err := f.TryGet[[]string]("ss")
 	if err != nil {
 		t.Fatal("expected no error; got", err)
 	}

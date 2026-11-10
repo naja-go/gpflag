@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpF64SFlagSet(f64sp *[]float64) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float64SliceVar(f64sp, "f64s", []float64{}, "Command separated list!")
+	f.NewVar(f64sp, "f64s", []float64{}, "Command separated list!")
 	return f
 }
 
 func setUpF64SFlagSetWithDefault(f64sp *[]float64) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Float64SliceVar(f64sp, "f64s", []float64{0.0, 1.0}, "Command separated list!")
+	f.NewVar(f64sp, "f64s", []float64{0.0, 1.0}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyF64S(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	getF64S, err := f.TryGet[[]float64]("f64s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat64Slice():", err)
 	}
@@ -59,7 +60,7 @@ func TestF64S(t *testing.T) {
 			t.Fatalf("expected f64s[%d] to be %s but got: %f", i, vals[i], v)
 		}
 	}
-	getF64S, err := f.GetFloat64Slice("f64s")
+	getF64S, err := f.TryGet[[]float64]("f64s")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestF64SDefault(t *testing.T) {
 		}
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	getF64S, err := f.TryGet[[]float64]("f64s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat64Slice():", err)
 	}
@@ -129,7 +130,7 @@ func TestF64SWithDefault(t *testing.T) {
 		}
 	}
 
-	getF64S, err := f.GetFloat64Slice("f64s")
+	getF64S, err := f.TryGet[[]float64]("f64s")
 	if err != nil {
 		t.Fatal("got an error from GetFloat64Slice():", err)
 	}

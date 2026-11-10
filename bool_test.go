@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -58,7 +59,7 @@ func (v *triStateValue) Type() string {
 func setUpFlagSet(tristate *triStateValue) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
 	*tristate = triStateFalse
-	flag := f.VarPF(tristate, "tristate", "t", "tristate value (true, maybe or false)")
+	flag := f.NewVarP(tristate, "tristate", "t", triStateFalse, "tristate value (true, maybe or false)")
 	flag.NoOptDefVal = "true"
 	return f
 }
@@ -156,7 +157,7 @@ func TestCustomIsBoolFlagGetsNoOptDefaultAutomatically(t *testing.T) {
 	var tristate triStateValue
 	f := NewFlagSet("test", ContinueOnError)
 	tristate = triStateFalse
-	f.VarPF(&tristate, "tristate", "t", "tristate value (true, maybe or false)")
+	f.NewP("tristate", "t", &tristate, "tristate value (true, maybe or false)")
 
 	if err := f.Parse([]string{"--tristate"}); err != nil {
 		t.Fatal("expected no error; got", err)
@@ -170,7 +171,7 @@ func TestCustomIsBoolFlagShortFormGetsNoOptDefaultAutomatically(t *testing.T) {
 	var tristate triStateValue
 	f := NewFlagSet("test", ContinueOnError)
 	tristate = triStateFalse
-	f.VarPF(&tristate, "tristate", "t", "tristate value (true, maybe or false)")
+	f.NewP("tristate", "t", &tristate, "tristate value (true, maybe or false)")
 
 	if err := f.Parse([]string{"-t"}); err != nil {
 		t.Fatal("expected no error; got", err)
@@ -192,10 +193,11 @@ func TestInvalidValue(t *testing.T) {
 }
 
 func TestBoolP(t *testing.T) {
-	b := BoolP("bool", "b", false, "bool value in CommandLine")
-	c := BoolP("c", "c", false, "other bool value")
+	fs := NewFlagSet("test", ContinueOnError)
+	b := fs.NewP("bool", "b", false, "bool value")
+	c := fs.NewP("c", "c", false, "other bool value")
 	args := []string{"--bool"}
-	if err := CommandLine.Parse(args); err != nil {
+	if err := fs.Parse(args); err != nil {
 		t.Error("expected no error, got ", err)
 	}
 	if *b != true {

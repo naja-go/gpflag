@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -16,10 +22,10 @@ const expectedOutput = `      --long-form[=true|false]    Some description
 
 func setUpPFlagSet(buf io.Writer) *FlagSet {
 	f := NewFlagSet("test", ExitOnError)
-	f.Bool("long-form", false, "Some description")
-	f.Bool("long-form2", false, "Some description\n  with multiline")
-	f.BoolP("long-name", "s", false, "Some description")
-	f.BoolP("long-name2", "t", false, "Some description with\n  multiline")
+	f.New("long-form", false, "Some description")
+	f.New("long-form2", false, "Some description\n  with multiline")
+	f.NewP("long-name", "s", false, "Some description")
+	f.NewP("long-name2", "t", false, "Some description with\n  multiline")
 	f.SetOutput(buf)
 	return f
 }
@@ -36,13 +42,13 @@ func TestPrintUsage(t *testing.T) {
 
 func setUpPFlagSet2(buf io.Writer) *FlagSet {
 	f := NewFlagSet("test", ExitOnError)
-	f.Bool("long-form", false, "Some description")
-	f.Bool("long-form2", false, "Some description\n  with multiline")
-	f.BoolP("long-name", "s", false, "Some description")
-	f.BoolP("long-name2", "t", false, "Some description with\n  multiline")
-	f.StringP("some-very-long-arg", "l", "test", "Some very long description having break the limit")
-	f.StringP("other-very-long-arg", "o", "long-default-value", "Some very long description having break the limit")
-	f.String("some-very-long-arg2", "very long default value", "Some very long description\nwith line break\nmultiple")
+	f.New("long-form", false, "Some description")
+	f.New("long-form2", false, "Some description\n  with multiline")
+	f.NewP("long-name", "s", false, "Some description")
+	f.NewP("long-name2", "t", false, "Some description with\n  multiline")
+	f.NewP("some-very-long-arg", "l", "test", "Some very long description having break the limit")
+	f.NewP("other-very-long-arg", "o", "long-default-value", "Some very long description having break the limit")
+	f.New("some-very-long-arg2", "very long default value", "Some very long description\nwith line break\nmultiple")
 	f.SetOutput(buf)
 	return f
 }
@@ -77,7 +83,7 @@ func TestPrintUsage_2(t *testing.T) {
 // Wrapping has to resume for the words after it (#501).
 func TestFlagUsagesWrappedContinuesAfterUnbreakableWord(t *testing.T) {
 	f := NewFlagSet("example", ContinueOnError)
-	f.String("mount", "", "a mount specification e.g. 'type=bind,source=/opt,destination=/hostopt'. The rest of this description is never wrapped.")
+	f.New("mount", "", "a mount specification e.g. 'type=bind,source=/opt,destination=/hostopt'. The rest of this description is never wrapped.")
 	got := f.FlagUsagesWrapped(60)
 	want := `      --mount string   a mount specification e.g.
                        'type=bind,source=/opt,destination=/hostopt'.

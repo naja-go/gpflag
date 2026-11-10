@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -56,7 +57,22 @@ func wrapFlagValue(v goflag.Value) Value {
 }
 
 func (v *flagValueWrapper) String() string {
+	if v == nil || v.inner == nil {
+		return ""
+	}
 	return v.inner.String()
+}
+
+func (v *flagValueWrapper) Get() any {
+	if getter, ok := v.inner.(goflag.Getter); ok {
+		return getter.Get()
+	}
+	return nil
+}
+
+func (v *flagValueWrapper) IsBoolFlag() bool {
+	b, ok := v.inner.(goBoolFlag)
+	return ok && b.IsBoolFlag()
 }
 
 func (v *flagValueWrapper) Set(s string) error {
@@ -67,11 +83,11 @@ func (v *flagValueWrapper) Type() string {
 	return v.flagType
 }
 
-// PFlagFromGoFlag will return a *gpflag.Flag given a *flag.Flag
-// If the *flag.Flag.Name was a single character (ex: `v`) it will be accessiblei
+// FlagFromGoFlag will return a *gpflag.Flag given a *flag.Flag
+// If the *flag.Flag.Name was a single character (ex: `v`) it will be accessible
 // with both `-v` and `--v` in flags. If the golang flag was more than a single
 // character (ex: `verbose`) it will only be accessible via `--verbose`
-func PFlagFromGoFlag(goflag *goflag.Flag) *Flag {
+func FlagFromGoFlag(goflag *goflag.Flag) *Flag {
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{
 		Name:  goflag.Name,
@@ -96,7 +112,7 @@ func (f *FlagSet) AddGoFlag(goflag *goflag.Flag) {
 	if f.Lookup(goflag.Name) != nil {
 		return
 	}
-	newflag := PFlagFromGoFlag(goflag)
+	newflag := FlagFromGoFlag(goflag)
 	f.AddFlag(newflag)
 }
 
@@ -116,8 +132,11 @@ func (f *FlagSet) AddGoFlagSet(newSet *goflag.FlagSet) {
 
 // CopyToGoFlagSet will add all current flags to the given Go flag set.
 // Deprecation remarks get copied into the usage description.
-// Whenever possible, a flag gets added for which Go flags shows
-// a proper type in the help message.
+// Values are shared. Native scalar bindings also preserve standard help types.
+//
+// The standard library calls Value.Set directly, so a [FirstSetter] parsed
+// through newSet does not see SetFirst: a types.StringArray appends to its
+// default instead of replacing it.
 func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
 	f.VisitAll(func(flag *Flag) {
 		usage := flag.Usage
@@ -125,21 +144,30 @@ func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
 			usage += " (DEPRECATED: " + flag.Deprecated + ")"
 		}
 
-		switch value := flag.Value.(type) {
-		case *stringValue:
-			newSet.StringVar((*string)(value), flag.Name, *(*string)(value), usage)
-		case *intValue:
-			newSet.IntVar((*int)(value), flag.Name, *(*int)(value), usage)
-		case *int64Value:
-			newSet.Int64Var((*int64)(value), flag.Name, *(*int64)(value), usage)
-		case *uintValue:
-			newSet.UintVar((*uint)(value), flag.Name, *(*uint)(value), usage)
-		case *uint64Value:
-			newSet.Uint64Var((*uint64)(value), flag.Name, *(*uint64)(value), usage)
-		case *durationValue:
-			newSet.DurationVar((*time.Duration)(value), flag.Name, *(*time.Duration)(value), usage)
-		case *float64Value:
-			newSet.Float64Var((*float64)(value), flag.Name, *(*float64)(value), usage)
+		var pointer any
+		if p, ok := flag.Value.(pointerer); ok {
+			pointer = p.pointer()
+		}
+		// Delegate native bindings to flag itself, rather than reproducing its
+		// formatting or zero-default detection. Only ordinary Go pointers cross
+		// this boundary; custom parsers are always kept intact.
+		switch p := pointer.(type) {
+		case *bool:
+			newSet.BoolVar(p, flag.Name, *p, usage)
+		case *string:
+			newSet.StringVar(p, flag.Name, *p, usage)
+		case *int:
+			newSet.IntVar(p, flag.Name, *p, usage)
+		case *int64:
+			newSet.Int64Var(p, flag.Name, *p, usage)
+		case *uint:
+			newSet.UintVar(p, flag.Name, *p, usage)
+		case *uint64:
+			newSet.Uint64Var(p, flag.Name, *p, usage)
+		case *float64:
+			newSet.Float64Var(p, flag.Name, *p, usage)
+		case *time.Duration:
+			newSet.DurationVar(p, flag.Name, *p, usage)
 		default:
 			newSet.Var(flag.Value, flag.Name, usage)
 		}
@@ -147,8 +175,8 @@ func (f *FlagSet) CopyToGoFlagSet(newSet *goflag.FlagSet) {
 }
 
 // ParseSkippedFlags explicitly Parses go test flags (i.e. the one starting with '-test.') with goflag.Parse(),
-// since by default those are skipped by gpflag.Parse().
-// Typical usage example: `ParseGoTestFlags(os.Args[1:], goflag.CommandLine)`
+// since by default those are skipped by FlagSet.Parse.
+// Typical usage example: `ParseSkippedFlags(os.Args[1:], goflag.CommandLine)`
 func ParseSkippedFlags(osArgs []string, goFlagSet *goflag.FlagSet) error {
 	var skippedFlags []string
 	for _, f := range osArgs {

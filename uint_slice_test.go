@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -9,13 +15,13 @@ import (
 
 func setUpUISFlagSet(uisp *[]uint) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.UintSliceVar(uisp, "uis", []uint{}, "Command separated list!")
+	f.NewVar(uisp, "uis", []uint{}, "Command separated list!")
 	return f
 }
 
 func setUpUISFlagSetWithDefault(uisp *[]uint) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.UintSliceVar(uisp, "uis", []uint{0, 1}, "Command separated list!")
+	f.NewVar(uisp, "uis", []uint{0, 1}, "Command separated list!")
 	return f
 }
 
@@ -27,7 +33,7 @@ func TestEmptyUIS(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	getUIS, err := f.TryGet[[]uint]("uis")
 	if err != nil {
 		t.Fatal("got an error from GetUintSlice():", err)
 	}
@@ -55,7 +61,7 @@ func TestUIS(t *testing.T) {
 			t.Fatalf("expected uis[%d] to be %s but got %d", i, vals[i], v)
 		}
 	}
-	getUIS, err := f.GetUintSlice("uis")
+	getUIS, err := f.TryGet[[]uint]("uis")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -89,7 +95,7 @@ func TestUISHex(t *testing.T) {
 			t.Fatalf("expected uis[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getUIS, err := f.GetUintSlice("uis")
+	getUIS, err := f.TryGet[[]uint]("uis")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -124,7 +130,7 @@ func TestUISDefault(t *testing.T) {
 		}
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	getUIS, err := f.TryGet[[]uint]("uis")
 	if err != nil {
 		t.Fatal("got an error from GetUintSlice():", err)
 	}
@@ -159,7 +165,7 @@ func TestUISWithDefault(t *testing.T) {
 		}
 	}
 
-	getUIS, err := f.GetUintSlice("uis")
+	getUIS, err := f.TryGet[[]uint]("uis")
 	if err != nil {
 		t.Fatal("got an error from GetUintSlice():", err)
 	}

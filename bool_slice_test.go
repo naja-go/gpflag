@@ -1,3 +1,9 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
+// Copyright 2012 Alex Ogier. All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package gpflag
 
 import (
@@ -9,13 +15,13 @@ import (
 
 func setUpBSFlagSet(bsp *[]bool) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BoolSliceVar(bsp, "bs", []bool{}, "Command separated list!")
+	f.NewVar(bsp, "bs", []bool{}, "Command separated list!")
 	return f
 }
 
 func setUpBSFlagSetWithDefault(bsp *[]bool) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.BoolSliceVar(bsp, "bs", []bool{false, true}, "Command separated list!")
+	f.NewVar(bsp, "bs", []bool{false, true}, "Command separated list!")
 	return f
 }
 
@@ -27,7 +33,7 @@ func TestEmptyBS(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getBS, err := f.GetBoolSlice("bs")
+	getBS, err := f.TryGet[[]bool]("bs")
 	if err != nil {
 		t.Fatal("got an error from GetBoolSlice():", err)
 	}
@@ -55,7 +61,7 @@ func TestBS(t *testing.T) {
 			t.Fatalf("expected is[%d] to be %s but got: %t", i, vals[i], v)
 		}
 	}
-	getBS, err := f.GetBoolSlice("bs")
+	getBS, err := f.TryGet[[]bool]("bs")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -90,7 +96,7 @@ func TestBSDefault(t *testing.T) {
 		}
 	}
 
-	getBS, err := f.GetBoolSlice("bs")
+	getBS, err := f.TryGet[[]bool]("bs")
 	if err != nil {
 		t.Fatal("got an error from GetBoolSlice():", err)
 	}
@@ -125,7 +131,7 @@ func TestBSWithDefault(t *testing.T) {
 		}
 	}
 
-	getBS, err := f.GetBoolSlice("bs")
+	getBS, err := f.TryGet[[]bool]("bs")
 	if err != nil {
 		t.Fatal("got an error from GetBoolSlice():", err)
 	}

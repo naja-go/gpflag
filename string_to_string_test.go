@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of ths2s source code s2s governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -130,13 +131,13 @@ func TestStringToString(t *testing.T) {
 		t.Logf("    Expected:      %v", test.expected)
 
 		f := NewFlagSet("test", ContinueOnError)
-		f.StringToStringP("arg", "a", test.def, "test string-to-string arg")
+		f.NewP("arg", "a", test.def, "test string-to-string arg")
 
 		if err := f.Parse(test.args); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		result, err := f.GetStringToString("arg")
+		result, err := f.TryGet[map[string]string]("arg")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -161,7 +162,7 @@ func TestStringToString(t *testing.T) {
 
 func TestStringToStringRejectsExtraCSVRecords(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
-	values := f.StringToString("arg", map[string]string{"default": "retained"}, "")
+	values := f.New("arg", map[string]string{"default": "retained"}, "")
 	if err := f.Parse([]string{"--arg", "a=first\nb=second"}); err == nil {
 		t.Fatal("expected an error instead of silently dropping the second record")
 	}
@@ -175,7 +176,7 @@ func TestStringToStringRejectsExtraCSVRecords(t *testing.T) {
 
 func TestStringToStringQuotedNewline(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
-	values := f.StringToString("arg", nil, "")
+	values := f.New[map[string]string]("arg", nil, "")
 	if err := f.Parse([]string{"--arg", "\"a=first\nsecond=value\""}); err != nil {
 		t.Fatalf("quoted newline should be preserved: %v", err)
 	}
@@ -184,24 +185,21 @@ func TestStringToStringQuotedNewline(t *testing.T) {
 	}
 }
 
-// This test ensures that [FlagSet.GetStringToString] always return the pointers which were given during flag
-// initialization.
-//
-// This behaviour is important as it ensures consumers of the library can access the underlying map in a stable,
-// consistent manner.
+// Get shares the working map across parsing, while keeping the supplied default
+// independent of working storage.
 func TestS2SStablePointers(t *testing.T) {
 	f := NewFlagSet("test", ContinueOnError)
 
 	defval := map[string]string{"a": "1", "b": "2"}
 
-	ptr := f.StringToString("map-flag", defval, "test for s2s arg")
+	ptr := f.New("map-flag", defval, "test for s2s arg")
 
-	if reflect.ValueOf(*ptr).Pointer() != reflect.ValueOf(defval).Pointer() {
-		t.Fatal("pointer mismatch")
+	if reflect.ValueOf(*ptr).Pointer() == reflect.ValueOf(defval).Pointer() {
+		t.Fatal("working storage aliases the supplied default")
 	}
 
 	// initially, arg should have defaults
-	result0, err := f.GetStringToString("map-flag")
+	result0, err := f.TryGet[map[string]string]("map-flag")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -212,9 +210,6 @@ func TestS2SStablePointers(t *testing.T) {
 		t.Fatalf("value not present in map or unexpected value: %v", result0)
 	}
 
-	if reflect.ValueOf(result0).Pointer() != reflect.ValueOf(defval).Pointer() {
-		t.Fatal("pointer mismatch")
-	}
 	if reflect.ValueOf(*ptr).Pointer() != reflect.ValueOf(result0).Pointer() {
 		t.Fatal("pointer mismatch")
 	}
@@ -224,7 +219,7 @@ func TestS2SStablePointers(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	result1, err := f.GetStringToString("map-flag")
+	result1, err := f.TryGet[map[string]string]("map-flag")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -241,7 +236,7 @@ func TestS2SStablePointers(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	result2, err := f.GetStringToString("map-flag")
+	result2, err := f.TryGet[map[string]string]("map-flag")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -261,12 +256,16 @@ func TestS2SStablePointers(t *testing.T) {
 		t.Fatalf("value not present in map or unexpected value: %v", result1)
 	}
 
+	if !reflect.DeepEqual(defval, map[string]string{"a": "1", "b": "2"}) {
+		t.Fatalf("parsing modified the supplied default: %v", defval)
+	}
+
 	// finally, if we clear the map, it should reset flag
 	for k := range result1 {
 		delete(result1, k)
 	}
 
-	result3, err := f.GetStringToString("map-flag")
+	result3, err := f.TryGet[map[string]string]("map-flag")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -277,13 +276,13 @@ func TestS2SStablePointers(t *testing.T) {
 
 func setUpS2SFlagSet(s2sp *map[string]string) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(s2sp, "s2s", map[string]string{}, "Command separated ls2st!")
+	f.NewVar(s2sp, "s2s", map[string]string{}, "Command separated ls2st!")
 	return f
 }
 
 func setUpS2SFlagSetWithDefault(s2sp *map[string]string) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(s2sp, "s2s", map[string]string{"da": "1", "db": "2", "de": "5,6"}, "Command separated ls2st!")
+	f.NewVar(s2sp, "s2s", map[string]string{"da": "1", "db": "2", "de": "5,6"}, "Command separated ls2st!")
 	return f
 }
 
@@ -310,7 +309,7 @@ func TestEmptyS2S(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	getS2S, err := f.TryGet[map[string]string]("s2s")
 	if err != nil {
 		t.Fatal("got an error from GetStringToString():", err)
 	}
@@ -334,7 +333,7 @@ func TestS2S(t *testing.T) {
 			t.Fatalf("expected s2s[%s] to be %s but got: %s", k, vals[k], v)
 		}
 	}
-	getS2S, err := f.GetStringToString("s2s")
+	getS2S, err := f.TryGet[map[string]string]("s2s")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -361,7 +360,7 @@ func TestS2SDefault(t *testing.T) {
 		}
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	getS2S, err := f.TryGet[map[string]string]("s2s")
 	if err != nil {
 		t.Fatal("got an error from GetStringToString():", err)
 	}
@@ -388,7 +387,7 @@ func TestS2SWithDefault(t *testing.T) {
 		}
 	}
 
-	getS2S, err := f.GetStringToString("s2s")
+	getS2S, err := f.TryGet[map[string]string]("s2s")
 	if err != nil {
 		t.Fatal("got an error from GetStringToString():", err)
 	}
@@ -402,7 +401,7 @@ func TestS2SWithDefault(t *testing.T) {
 func TestS2SNilDefault(t *testing.T) {
 	var s2s map[string]string
 	f := NewFlagSet("test", ContinueOnError)
-	f.StringToStringVar(&s2s, "s2s", nil, "Command separated ls!")
+	f.NewVar(&s2s, "s2s", map[string]string(nil), "Command separated ls!")
 
 	arg := fmt.Sprintf("--s2s=%s", createS2SFlag(map[string]string{"a": "1", "b": "2"}))
 	if err := f.Parse([]string{arg}); err != nil {
@@ -433,7 +432,7 @@ func TestS2SStringPreservesTrailingWhitespace(t *testing.T) {
 				if useDefault {
 					defaults["key"] = tc.value
 				}
-				f.StringToString("map", defaults, "")
+				f.New("map", defaults, "")
 				if !useDefault {
 					if err := f.Set("map", "key="+tc.value); err != nil {
 						t.Fatal(err)

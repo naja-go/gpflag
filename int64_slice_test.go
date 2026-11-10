@@ -1,3 +1,4 @@
+// Copyright 2026 The naja-go Authors. All rights reserved.
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,13 +14,13 @@ import (
 
 func setUpI64SFlagSet(isp *[]int64) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Int64SliceVar(isp, "is", []int64{}, "Command separated list!")
+	f.NewVar(isp, "is", []int64{}, "Command separated list!")
 	return f
 }
 
 func setUpI64SFlagSetWithDefault(isp *[]int64) *FlagSet {
 	f := NewFlagSet("test", ContinueOnError)
-	f.Int64SliceVar(isp, "is", []int64{0, 1}, "Command separated list!")
+	f.NewVar(isp, "is", []int64{0, 1}, "Command separated list!")
 	return f
 }
 
@@ -31,7 +32,7 @@ func TestEmptyI64S(t *testing.T) {
 		t.Fatal("expected no error; got", err)
 	}
 
-	getI64S, err := f.GetInt64Slice("is")
+	getI64S, err := f.TryGet[[]int64]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt64Slice():", err)
 	}
@@ -59,7 +60,7 @@ func TestI64S(t *testing.T) {
 			t.Fatalf("expected is[%d] to be %s but got: %d", i, vals[i], v)
 		}
 	}
-	getI64S, err := f.GetInt64Slice("is")
+	getI64S, err := f.TryGet[[]int64]("is")
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestI64SDefault(t *testing.T) {
 		}
 	}
 
-	getI64S, err := f.GetInt64Slice("is")
+	getI64S, err := f.TryGet[[]int64]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt64Slice():", err)
 	}
@@ -129,7 +130,7 @@ func TestI64SWithDefault(t *testing.T) {
 		}
 	}
 
-	getI64S, err := f.GetInt64Slice("is")
+	getI64S, err := f.TryGet[[]int64]("is")
 	if err != nil {
 		t.Fatal("got an error from GetInt64Slice():", err)
 	}
