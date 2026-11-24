@@ -1,45 +1,42 @@
-# gpflag — generic POSIX flags
+<img width="1280" height="640" alt="gpflag-banner" src="https://github.com/user-attachments/assets/d608a0c6-acda-495c-b751-7ebf011677f1" />
 
-[![Build Status](https://github.com/naja-go/gpflag/actions/workflows/ci.yaml/badge.svg)](https://github.com/naja-go/gpflag/actions/workflows/ci.yaml)
-![GitHub License](https://img.shields.io/github/license/naja-go/gpflag)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/naja-go/gpflag)](https://pkg.go.dev/github.com/naja-go/gpflag)
-
-A **hard fork** of spf13/pflag, using Go generics instead of type-specific APIs.
-Requires **Go 1.27+**, including generic methods. This is not source-compatible
-with pflag or Go's `flag` package.
-
-gpflag is forked from [spf13/pflag](https://github.com/spf13/pflag), which is
-itself derived from Go's [`flag`](https://pkg.go.dev/flag) package. It is
-distributed under the same BSD-style [license](LICENSE), which retains the
-original copyright notices.
+`gpflag` is a hard fork of `spf13/pflag`. It uses Go generics instead of type-specific APIs,
+utilizes a modern `New(...)` syntax, provides `spf13/pflag` feature-compatible custom types,
+and implements zero global state.
 
 ```sh
 go get github.com/naja-go/gpflag
 ```
 
-## Define, parse, retrieve
-
 ```go
 package main
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 
-    "github.com/naja-go/gpflag"
-    "github.com/naja-go/gpflag/pkg/types"
+	"github.com/naja-go/gpflag"
+	"github.com/naja-go/gpflag/pkg/types"
 )
 
 func main() {
-    fs := gpflag.NewFlagSet("server", gpflag.ContinueOnError)
-    port := fs.NewP("port", "p", uint16(8080), "listen port")
-    var verbose types.Count
-    fs.NewVarP(&verbose, "verbose", "v", types.Count(0), "verbosity")
-    if err := fs.Parse(os.Args[1:]); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-        os.Exit(2)
-    }
-    fmt.Println(*port, int(verbose), fs.Args())
+	// Define this program's flagset
+	f := gpflag.NewFlagSet("server", gpflag.ContinueOnError)
+
+	// Define some flags on the flagset
+	port := f.NewP("port", "p", 8080, "listen port")
+	var verbose types.Count
+	f.NewVarP(&verbose, "verbose", "v", types.Count(0), "verbosity")
+
+	// Parse flags
+	if err := f.Parse(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+
+	// go run main.go -p 1111 -vvv helloworld
+	// prints: "1111 3 [woof]"
+	fmt.Println(*port, verbose, f.Args())
 }
 ```
 
@@ -52,26 +49,36 @@ func (f *FlagSet) NewVar[T any](p *T, name string, value T, usage string) *Flag
 func (f *FlagSet) NewVarP[T any](p *T, name, shorthand string, value T, usage string) *Flag
 ```
 
-`New` and `NewP` return a **typed pointer to the value**, as pflag's `Int` and
-`String` did, so reading a flag is a dereference the compiler checks. `NewVar`
-and `NewVarP` bind a variable you already hold and return the non-generic
-**`*Flag`**, which is where you set `Hidden`, `Deprecated`, `NoOptDefVal`, or
+`New` and `NewP` return a typed pointer to the value, as `pflag`'s `Int(...)` and
+`String(...)` and other typed-specific functions did.
+
+`NewVar` and `NewVarP` bind a variable you already hold and return the non-generic
+`*Flag`, which is where you set `Hidden`, `Deprecated`, `NoOptDefVal`, or can
 read `Changed`. `fs.Lookup(name)` returns the `*Flag` for any flag.
 
-There is **no global flag set**: unlike pflag and Go's `flag`, gpflag has no
-`CommandLine` and no package-level `New`, `Parse`, `Lookup`, or `Args`. Create
-one with `NewFlagSet` and pass `os.Args[1:]` to `Parse`.
-`NewVar` initializes the supplied variable to the default. Unsupported types and
-nil destination pointers panic at construction; invalid arguments return errors.
+There is no package global flag set: unlike `pflag` and Go's `flag`, `gpflag` has no
+`CommandLine` and no package-level `New`, `Parse`, `Lookup`, or `Args`.
+You can create one with `NewFlagSet` and pass `os.Args[1:]` to `Parse`:
+
+```go
+var globalFlags gpflag.FlagSet
+
+func init() {
+	globalFlags = *gpflag.NewFlagSet("global-flags", gpflag.ContinueOnError)
+}
+```
+
+`NewVar` initializes the supplied variable to the default.
+Unsupported types and nil destination pointers panic at construction as this is
+a programmer error.
+Invalid arguments return errors.
 
 When the pointer is not at hand, for example when a flag is defined in one
 place and read in another, retrieve the stored value by name or from its
 `*Flag`, without formatting and reparsing:
 
 ```go
-value := fs.Get[uint16]("port")
-value := fs.Lookup("port").Get[uint16]()
-value := gpflag.Get[uint16](fs.Lookup("port"))
+value := fs.Get[int]("port")
 ```
 
 `Get` panics if the flag does not exist or `T` is not its exact type, since both
@@ -79,7 +86,7 @@ are programming errors. `TryGet` has the same three forms and returns
 `(T, error)` instead, for flags or types that are not known statically:
 
 ```go
-value, err := fs.TryGet[uint16](name)
+value, err := fs.TryGet[int]("port")
 ```
 
 Retrieval uses a Go type assertion: `Get[int]` cannot retrieve a `uint16`, nor can
@@ -90,13 +97,13 @@ Go storage-sharing semantics. FlagSets are not safe for concurrent mutation.
 
 - Booleans, strings, all signed/unsigned integers, `uintptr`, floats, complex
   numbers, and named versions of these types. Integer syntax follows
-  `strconv.ParseInt`/`ParseUint` with base 0; destination-width overflow is rejected.
+  `strconv.ParseInt`/`ParseUint` with base 0. Destination-width overflow is rejected.
 - Slices of scalar values, including named slice/element types. A `[]byte` is a
-  numeric CSV list; use `types.Hex` or `types.Base64` for encoded binary data.
+  numeric CSV list. Use `types.Hex` or `types.Base64` for encoded binary data.
 - String-keyed maps with scalar values, including named string keys.
 - `time.Duration`, `time.Time` (RFC3339Nano), `net.IP`, `net.IPMask`, and `net.IPNet`.
   These also work as collection elements. Empty scalar IP input retains its
-  existing value, as in pflag.
+  existing value, as in `pflag`.
 - Types implementing `encoding.TextUnmarshaler`, including standard-library
   values such as `netip.Addr`. `encoding.TextMarshaler` supplies formatting when
   available; otherwise formatting uses `fmt.Sprint`.
@@ -110,14 +117,15 @@ Go storage-sharing semantics. FlagSets are not safe for concurrent mutation.
 `uint16Slice`, `stringToUint16`), including for named types such as
 `type Port uint16`. `TextUnmarshaler` types are named `text`. The exact Go type is still what `Get[Port]` requires.
 
-Native collections accept CSV. The **first successful occurrence replaces the
-default**, and later occurrences append to slices or merge maps:
+Native collections accept CSV. The first successful occurrence replaces the
+default, and later occurrences append to slices or merge maps:
 
 ```go
 fs.New("tags", []string{"default"}, "tags")
-// --tags=a,b --tags=c -> []string{"a", "b", "c"}
+// Providing "--tags=a,b --tags=c" appends to []string{"a", "b", "c"}
+
 fs.New("limits", map[string]int{"default": 1}, "limits")
-// --limits=a=2,b=3 --limits=a=4 -> map[string]int{"a": 4, "b": 3}
+// Providing "--limits=a=2,b=3 --limits=a=4" merges to map[string]int{"a": 4, "b": 3}
 ```
 
 Slice/map defaults are copied, so parsing does not modify the supplied default.
@@ -127,14 +135,14 @@ advance first-occurrence state. Slice flags expose `SliceValue` for append,
 replace, and string-list access. Maps keep stable working storage across parses;
 formatting sorts keys for deterministic help output.
 
-String maps retain pflag's single-assignment rule: `--define=a=1,2` assigns
+String maps retain `pflag`'s single-assignment rule: `--define=a=1,2` assigns
 `"1,2"` to `a`. Multiple assignments use CSV; quote entire `key=value` fields to
 preserve commas, equals signs, or newlines. Multiple unquoted CSV records in one
 argument are rejected.
 
 ## Special types
 
-`github.com/naja-go/gpflag/pkg/types` provides:
+`github.com/naja-go/gpflag/pkg/types` provides `spf13/pflag` aligned types:
 
 | Type | Behavior |
 | --- | --- |
@@ -178,8 +186,16 @@ leaving their own storage unchanged on error.
 ## Development
 
 ```sh
-go test -race ./...
-go vet ./...
+make build
+make test
+make lint
 ```
 
-BSD licensed; see [LICENSE](LICENSE).
+## License
+
+`gpflag` is forked from [`spf13/pflag`](https://github.com/spf13/pflag), which is
+itself derived from Go's [`flag`](https://pkg.go.dev/flag) package. It is
+distributed under the same BSD-style [license](LICENSE), which retains the
+original copyright notices.
+
+See the [LICENSE](LICENSE).
