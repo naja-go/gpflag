@@ -110,7 +110,9 @@ Go storage-sharing semantics. FlagSets are not safe for concurrent mutation.
 A user of your program can see these changes:
 
 - Help text. A boolean flag prints as `--debug[=true|false]`, and a zero default
-  such as `(default [])` or `(default 0s)` is not printed.
+  such as `(default [])` or `(default 0s)` is not printed. Call
+  `Flag.SetUsageSyntax` to replace the text after a flag's name: `""` prints a
+  plain `--debug`.
 - The error for a bad value. `--n=abc` gives `must be an integer`, not
   `strconv.ParseInt: parsing "abc": invalid syntax`.
 - A deprecation warning names the flag as the user typed it, for example

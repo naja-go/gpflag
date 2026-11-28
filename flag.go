@@ -144,6 +144,16 @@ type Flag struct {
 	Hidden              bool                // used by cobra.Command to allow flags to be hidden from help/usage text
 	ShorthandDeprecated string              // If the shorthand of this flag is deprecated, this string is the new or now thing to use
 	Annotations         map[string][]string // used by cobra.Command bash autocomple code
+
+	usageSyntax *string // set by SetUsageSyntax. Nil falls back to the default text
+}
+
+// SetUsageSyntax sets the text that help output prints directly after the
+// flag's name, in place of the default such as " string" or "[=true|false]".
+// The text is printed as given, so it must include any separating space.
+// An empty string prints the name alone.
+func (f *Flag) SetUsageSyntax(syntax string) {
+	f.usageSyntax = &syntax
 }
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
@@ -570,6 +580,36 @@ func wrap(i, w int, s string) string {
 	return r
 }
 
+// defaultUsageSyntax returns the default text printed after a flag's name:
+// the default value placeholder, then the value used when the flag has no argument.
+func defaultUsageSyntax(flag *Flag, varname string) string {
+	syntax := ""
+	valueType := flag.Value.Type()
+	if isNoOptBoolValue(flag.Value) && valueType == "bool" {
+		syntax = "[=true|false]"
+	} else if varname != "" {
+		syntax = " " + varname
+	}
+
+	if flag.NoOptDefVal != "" {
+		switch valueType {
+		case "string":
+			syntax += fmt.Sprintf("[=\"%s\"]", flag.NoOptDefVal)
+		case "bool", "boolfunc":
+			if flag.NoOptDefVal != "true" {
+				syntax += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
+			}
+		case "count":
+			if flag.NoOptDefVal != "+1" {
+				syntax += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
+			}
+		default:
+			syntax += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
+		}
+	}
+	return syntax
+}
+
 // FlagUsagesWrapped returns a string containing the usage information
 // for all flags in the FlagSet. Wrapped to `cols` columns (0 for no
 // wrapping)
@@ -593,28 +633,14 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string {
 
 		varname, usage := UnquoteUsage(flag)
 		valueType := flag.Value.Type()
-		if isNoOptBoolValue(flag.Value) && valueType == "bool" {
-			line += "[=true|false]"
-		} else if varname != "" {
-			line += " " + varname
-		}
 
-		if flag.NoOptDefVal != "" {
-			switch valueType {
-			case "string":
-				line += fmt.Sprintf("[=\"%s\"]", flag.NoOptDefVal)
-			case "bool", "boolfunc":
-				if flag.NoOptDefVal != "true" {
-					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
-				}
-			case "count":
-				if flag.NoOptDefVal != "+1" {
-					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
-				}
-			default:
-				line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
-			}
+		var syntax string
+		if flag.usageSyntax != nil {
+			syntax = *flag.usageSyntax
+		} else {
+			syntax = defaultUsageSyntax(flag, varname)
 		}
+		line += syntax
 
 		// This special character will be replaced with spacing once the
 		// correct alignment is calculated
