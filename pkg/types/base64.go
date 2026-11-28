@@ -27,4 +27,4 @@ func (b *Base64) Set(s string) error {
 func (b *Base64) String() string { return base64.StdEncoding.EncodeToString(*b) }
 
 // Type returns the string type for the base64 type
-func (b *Base64) Type() string { return "base64" }
+func (b *Base64) Type() string { return "bytesBase64" }

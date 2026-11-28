@@ -12,6 +12,9 @@ import (
 
 func TestBase64(t *testing.T) {
 	var value types.Base64
+	if value.Type() != "bytesBase64" {
+		t.Fatalf("Type() = %q", value.Type())
+	}
 	for _, test := range []struct{ text, want string }{
 		{"aGVsbG8=", "hello"},
 		{"AP8=", "\x00\xff"},
