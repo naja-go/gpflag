@@ -112,6 +112,10 @@ type FlagSet struct {
 	// ParseErrorsAllowlist is used to configure an allowlist of errors
 	ParseErrorsAllowlist ParseErrorsAllowlist
 
+	// LegacyUsageFormat prints flag usage in the format of spf13/pflag v1.0,
+	// for a program that must keep its help text.
+	LegacyUsageFormat bool
+
 	name              string
 	parsed            bool
 	actual            map[NormalizedName]*Flag
@@ -445,12 +449,36 @@ func (f *Flag) defaultIsZeroValue() bool {
 	}
 }
 
+// legacyDefaultIsZeroValue applies the rules of spf13/pflag v1.0. Outside the
+// native scalar types, that release omitted "[]" only for int slices, string
+// slices and string arrays, and it never omitted "0s".
+func (f *Flag) legacyDefaultIsZeroValue() bool {
+	if _, ok := f.Value.(*scalarValue); ok {
+		return f.defaultIsZeroValue()
+	}
+	switch f.DefValue {
+	case "", "0", "false", "<nil>":
+		return true
+	case "[]":
+		switch f.Value.Type() {
+		case "intSlice", "stringSlice", "stringArray":
+			return true
+		}
+	}
+	return false
+}
+
 // UnquoteUsage extracts a back-quoted name from the usage
 // string for a flag and returns it and the un-quoted usage.
 // Given "a `name` to show" it returns ("name", "a name to show").
 // If there are no back quotes, the name is an educated guess of the
 // type of the flag's value, or the empty string if the flag is boolean.
 func UnquoteUsage(flag *Flag) (name string, usage string) {
+	return unquoteUsage(flag, false)
+}
+
+// unquoteUsage is UnquoteUsage. With legacy set, a custom boolean Value keeps its type name.
+func unquoteUsage(flag *Flag, legacy bool) (name string, usage string) {
 	// Look for a back-quoted name, but avoid the strings package.
 	usage = flag.Usage
 	for i := 0; i < len(usage); i++ {
@@ -467,7 +495,7 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 	}
 
 	name = flag.Value.Type()
-	if isNoOptBoolValue(flag.Value) {
+	if !legacy && isNoOptBoolValue(flag.Value) {
 		name = ""
 	}
 	switch name {
@@ -591,9 +619,9 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string {
 			line = fmt.Sprintf("      --%s", flag.Name)
 		}
 
-		varname, usage := UnquoteUsage(flag)
+		varname, usage := unquoteUsage(flag, f.LegacyUsageFormat)
 		valueType := flag.Value.Type()
-		if isNoOptBoolValue(flag.Value) && valueType == "bool" {
+		if !f.LegacyUsageFormat && isNoOptBoolValue(flag.Value) && valueType == "bool" {
 			line += "[=true|false]"
 		} else if varname != "" {
 			line += " " + varname
@@ -624,7 +652,11 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string {
 		}
 
 		line += usage
-		if !flag.defaultIsZeroValue() {
+		zero := flag.defaultIsZeroValue()
+		if f.LegacyUsageFormat {
+			zero = flag.legacyDefaultIsZeroValue()
+		}
+		if !zero {
 			if valueType == "string" {
 				line += fmt.Sprintf(" (default %q)", flag.DefValue)
 			} else {

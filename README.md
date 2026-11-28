@@ -202,6 +202,7 @@ leaving their own storage unchanged on error.
   `SetInterspersed(false)`.
 - Name normalization, sorted/registration-order visits, hidden/deprecated flags,
   shorthand deprecation, annotations, and wrapped help with backtick placeholders.
+- `LegacyUsageFormat` on a `FlagSet` prints help in the `spf13/pflag` v1.0 format.
 - Continue/exit/panic error handling and configurable unknown-flag handling.
 - `AddGoFlagSet`, `CopyToGoFlagSet`, and `ParseSkippedFlags` for standard-library
   flag integration. Shared values are not reinitialized during copying.

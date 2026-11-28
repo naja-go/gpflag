@@ -8,6 +8,7 @@ package gpflag
 
 import (
 	"bytes"
+	goflag "flag"
 	"io"
 	"testing"
 )
@@ -92,5 +93,30 @@ func TestFlagUsagesWrappedContinuesAfterUnbreakableWord(t *testing.T) {
 `
 	if got != want {
 		t.Errorf("FlagUsagesWrapped(60)\nwant:\n%q\ngot:\n%q", want, got)
+	}
+}
+
+// The expected text is the output of spf13/pflag v1.0.10 for the same flags.
+func TestLegacyUsageFormat(t *testing.T) {
+	g := goflag.NewFlagSet("go", goflag.ContinueOnError)
+	g.Duration("go-duration", 0, "a go duration")
+
+	f := NewFlagSet("test", ContinueOnError)
+	f.LegacyUsageFormat = true
+	f.AddGoFlagSet(g)
+	f.New("bool", false, "a bool")
+	f.New[[]bool]("bools", nil, "a bool slice")
+	f.New[[]string]("strings", nil, "a string slice")
+	var custom customBoolFlagValue
+	f.New("custom-bool", &custom, "a custom bool")
+
+	want := `      --bool                             a bool
+      --bools bools                      a bool slice (default [])
+      --custom-bool custom-bool[=true]   a custom bool
+      --go-duration duration             a go duration (default 0s)
+      --strings strings                  a string slice
+`
+	if got := f.FlagUsages(); got != want {
+		t.Errorf("want:\n%s\ngot:\n%s", want, got)
 	}
 }
