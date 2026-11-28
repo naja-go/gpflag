@@ -94,3 +94,24 @@ func TestFlagUsagesWrappedContinuesAfterUnbreakableWord(t *testing.T) {
 		t.Errorf("FlagUsagesWrapped(60)\nwant:\n%q\ngot:\n%q", want, got)
 	}
 }
+
+func TestSetUsageSyntax(t *testing.T) {
+	f := NewFlagSet("test", ContinueOnError)
+	f.New("debug", false, "enable debug output")
+	f.New("verbose", false, "enable verbose output")
+	f.NewP("name", "n", "", "a name")
+	var tri customBoolFlagValue
+	f.New("tri", &tri, "a custom bool")
+
+	f.Lookup("debug").SetUsageSyntax("")
+	f.Lookup("tri").SetUsageSyntax("[=true|maybe|false]")
+
+	want := `      --debug                    enable debug output
+  -n, --name string              a name
+      --tri[=true|maybe|false]   a custom bool
+      --verbose[=true|false]     enable verbose output
+`
+	if got := f.FlagUsages(); got != want {
+		t.Errorf("want:\n%s\ngot:\n%s", want, got)
+	}
+}
