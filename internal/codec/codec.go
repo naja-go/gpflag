@@ -28,6 +28,7 @@ type Codec struct {
 	EmptyNoop   bool // Set("") leaves the value unchanged (net.IP)
 	StripQuotes bool // in lists, quotes are never meaningful (bool, IP, IPNet)
 	TrimSpace   bool // in lists, whitespace around fields is ignored
+	ByKind      bool // chosen by the underlying kind, not by the type
 
 	base reflect.Type // the Go type Parse returns and Format accepts
 }
@@ -55,7 +56,9 @@ func lookup(t reflect.Type) (Codec, bool) {
 		return c, true
 	}
 	if c, ok := kindCodecs[t.Kind()]; ok {
-		return c.as(t), true
+		c = c.as(t)
+		c.ByKind = true
+		return c, true
 	}
 	return Codec{}, false
 }

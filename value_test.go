@@ -43,3 +43,35 @@ func TestCodecForUsesValueImplementations(t *testing.T) {
 		t.Errorf("types = %q, %q", list.Value.Type(), dict.Value.Type())
 	}
 }
+
+// levelValue has the Set and String methods of flag.Value, but no Type method.
+type levelValue int
+
+func (l *levelValue) String() string   { return "" }
+func (l *levelValue) Set(string) error { return nil }
+
+// textLevelValue also has UnmarshalText, so it is parsed as text.
+type textLevelValue int
+
+func (l *textLevelValue) String() string             { return "" }
+func (l *textLevelValue) Set(string) error           { return nil }
+func (l *textLevelValue) UnmarshalText([]byte) error { *l = 1; return nil }
+
+func TestSetWithoutTypeIsRejected(t *testing.T) {
+	fs := NewFlagSet("test", ContinueOnError)
+	mustPanic := func(name string, register func()) {
+		defer func() {
+			if recover() == nil {
+				t.Errorf("%s: expected a panic", name)
+			}
+		}()
+		register()
+	}
+	mustPanic("scalar", func() { fs.New("level", levelValue(0), "") })
+	mustPanic("slice", func() { fs.New("levels", []levelValue{}, "") })
+
+	level := fs.New("text-level", textLevelValue(0), "")
+	if err := fs.Parse([]string{"--text-level=x"}); err != nil || *level != 1 {
+		t.Errorf("text level = %d, err = %v", *level, err)
+	}
+}

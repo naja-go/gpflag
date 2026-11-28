@@ -5,6 +5,7 @@
 package gpflag
 
 import (
+	goflag "flag"
 	"fmt"
 	"reflect"
 
@@ -117,7 +118,12 @@ func codecFor(t reflect.Type) (codec.Codec, bool) {
 	if c, ok := valueCodec(t); ok {
 		return c, true
 	}
-	return codec.For(t)
+	c, ok := codec.For(t)
+	// Parsing by kind would never call the Set method of a flag.Value.
+	if ok && c.ByKind && reflect.PointerTo(t).Implements(reflect.TypeFor[goflag.Value]()) {
+		panic(fmt.Sprintf("gpflag: %s has Set and String but no Type method; add Type() string to make it a Value", t))
+	}
+	return c, ok
 }
 
 var valueType = reflect.TypeFor[Value]()
