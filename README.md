@@ -95,6 +95,27 @@ Retrieval uses a Go type assertion: `Get[int]` cannot retrieve a `uint16`, nor c
 it discard a named type. Bound variables and returned slices/maps have ordinary
 Go storage-sharing semantics. FlagSets are not safe for concurrent mutation.
 
+## Moving from spf13/pflag
+
+| `spf13/pflag` | `gpflag` |
+| --- | --- |
+| `fs.Int("n", 1, "usage")`, `fs.IntP`, `fs.IntVar`, `fs.IntVarP`, and the same for other types | `fs.New("n", 1, "usage")`, `fs.NewP`, `fs.NewVar`, `fs.NewVarP` |
+| `fs.Float32("qps", 50, "usage")` | `fs.New[float32]("qps", 50, "usage")`, because a plain `50` makes an `int` flag |
+| `fs.Var(value, "name", "usage")`, `fs.VarP(value, "name", "n", "usage")` | `fs.New("name", value, "usage")`, `fs.NewP("name", "n", value, "usage")` |
+| `flag := fs.VarPF(&level, "level", "l", "usage")` | `flag := fs.NewVarP(&level, "level", "l", level, "usage")` |
+| `fs.GetInt("n")` | `fs.TryGet[int]("n")` |
+| `pflag.CommandLine`, `pflag.Parse()` | `fs := gpflag.NewFlagSet(os.Args[0], gpflag.ExitOnError)`, `fs.Parse(os.Args[1:])` |
+| `pflag.PFlagFromGoFlag` | `gpflag.FlagFromGoFlag` |
+
+A user of your program can see these changes:
+
+- Help text. A boolean flag prints as `--debug[=true|false]`, and a zero default
+  such as `(default [])` or `(default 0s)` is not printed.
+- The error for a bad value. `--n=abc` gives `must be an integer`, not
+  `strconv.ParseInt: parsing "abc": invalid syntax`.
+- A deprecation warning names the flag as the user typed it, for example
+  `--old_name` when a normalize function maps `_` to `-`.
+
 ## Supported values
 
 - Booleans, strings, all signed/unsigned integers, `uintptr`, floats, complex
